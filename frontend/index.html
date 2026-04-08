@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniBrew Session Orchestrator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="token-gate" class="token-gate" style="display:none;">
+    <div class="token-gate__card">
+      <img src="MB_logo.png" alt="MiniBrew" class="token-gate__logo">
+      <h1 class="token-gate__title">MiniBrew Session Orchestrator</h1>
+      <p class="token-gate__desc">No API token found. Enter your MiniBrew bearer token to continue.</p>
+      <div class="token-gate__form">
+        <input type="password" id="gate-token-input" class="token-gate__input" placeholder="Paste your bearer token here" autocomplete="off">
+        <button id="gate-submit-btn" class="token-gate__submit">Connect</button>
+      </div>
+      <p id="gate-error" class="token-gate__error" style="display:none;"></p>
+    </div>
+  </div>
+
+  <header class="status-bar">
+    <div class="status-bar__left">
+      <img src="MB_logo.png" alt="MiniBrew" class="status-bar__logo" onerror="this.style.display='none'">
+      <span class="status-bar__title">MiniBrew</span>
+      <span class="status-bar__uuid" id="device-uuid">—</span>
+      <span class="status-bar__phase" id="phase-label">—</span>
+    </div>
+    <div class="status-bar__right">
+      <span class="status-bar__state" id="process-state">IDLE</span>
+      <span class="status-bar__indicator" id="connection-indicator">⚫</span>
+      <button id="settings-btn" class="settings-btn" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="sessions-section">
+      <h2>
+        Sessions
+        <div class="session-create-btns">
+          <button id="create-brew-btn" title="Start brew session">+ Brew</button>
+          <button id="create-clean-btn" title="Start clean session">+ Clean</button>
+          <button id="create-acid-btn" title="Start acid clean session">+ Acid Clean</button>
+        </div>
+      </h2>
+      <div class="session-form" id="session-form" style="display:none;">
+        <div class="session-form__row">
+          <label>MiniBrew UUID:</label>
+          <input type="text" id="session-uuid-input" placeholder="2403B0994-SHNCANKM">
+        </div>
+        <div class="session-form__row">
+          <label>Beer Recipe (optional JSON):</label>
+          <input type="text" id="session-recipe-input" placeholder='{"name":"IPA"}'>
+        </div>
+        <div class="session-form__actions">
+          <button id="session-form-create-btn">Create</button>
+          <button id="session-form-cancel-btn">Cancel</button>
+        </div>
+      </div>
+      <div class="sessions-list" id="sessions-list">
+        <div class="empty-state">No active sessions</div>
+      </div>
+    </section>
+
+    <section class="base-station-section">
+      <h2>Base Station Controls</h2>
+      <div class="controls-grid" id="controls-grid">
+        <button class="control-btn" data-command="END_SESSION" disabled>End Session</button>
+        <button class="control-btn" data-command="NEXT_STEP" disabled>Next Step</button>
+        <button class="control-btn" data-command="BYPASS_USER_ACTION" disabled>Bypass User Action</button>
+        <button class="control-btn" data-command="CHANGE_TEMPERATURE" disabled>Change Temperature</button>
+        <button class="control-btn" data-command="GO_TO_MASH" disabled>Go To Mash</button>
+        <button class="control-btn" data-command="GO_TO_BOIL" disabled>Go To Boil</button>
+        <button class="control-btn" data-command="FINISH_BREW_SUCCESS" disabled>Finish Brew Success</button>
+        <button class="control-btn" data-command="FINISH_BREW_FAILURE" disabled>Finish Brew Failure</button>
+        <button class="control-btn" data-command="CLEAN_AFTER_BREW" disabled>Clean After Brew</button>
+        <button class="control-btn" data-command="BYPASS_CLEAN" disabled>Bypass Clean</button>
+      </div>
+      <div class="temp-control" id="temp-control" style="display:none;">
+        <label for="temp-input">Target Temperature (°C):</label>
+        <input type="number" id="temp-input" step="0.1" value="70">
+        <button id="temp-apply-btn">Apply</button>
+      </div>
+    </section>
+
+    <section class="keg-section">
+      <h2>Keg Management</h2>
+      <div class="keg-list" id="keg-list">
+        <div class="empty-state">No kegs registered</div>
+      </div>
+    </section>
+
+    <section class="keg-controls-section">
+      <h2>Keg Controls</h2>
+      <div class="keg-controls-row">
+        <div class="keg-control-group">
+          <label>Select Keg</label>
+          <select id="keg-select">
+            <option value="">— select keg —</option>
+          </select>
+        </div>
+        <div class="keg-control-group">
+          <label>Beer Name</label>
+          <input type="text" id="beer-name-input" placeholder="e.g. IPA Batch 42">
+          <button id="set-beer-name-btn">Set Name</button>
+        </div>
+        <div class="keg-control-group">
+          <label>Temperature (°C)</label>
+          <input type="number" id="keg-temp-input" step="0.1" value="4">
+          <button id="set-keg-temp-btn">Apply Temp</button>
+        </div>
+      </div>
+      <div class="keg-controls-buttons">
+        <button class="keg-action-btn" data-action="PUT_INTO_SERVING_MODE">Serving Mode</button>
+        <button class="keg-action-btn" data-action="RESET_KEG">Reset Keg</button>
+      </div>
+    </section>
+
+    <section class="device-info-section">
+      <h2>
+        Device Info
+        <div class="device-info-controls">
+          <div class="device-info-btns">
+            <button id="refresh-device-btn" class="refresh-btn active" title="Refresh from breweryoverview">↻ Overview</button>
+            <button id="refresh-devices-btn" class="refresh-btn" title="Refresh from /v1/devices">↻ Devices</button>
+          </div>
+          <div class="auto-refresh">
+            <label for="auto-refresh-select">Auto:</label>
+            <select id="auto-refresh-select">
+              <option value="0">Off</option>
+              <option value="1">1s</option>
+              <option value="2">2s</option>
+              <option value="3">3s</option>
+              <option value="4">4s</option>
+              <option value="5">5s</option>
+              <option value="10">10s</option>
+            </select>
+          </div>
+        </div>
+      </h2>
+      <div class="device-info-content">
+        <div class="device-field">
+          <span class="device-field__label">UUID:</span>
+          <span class="device-field__value device-field__value--uuid" id="info-uuid">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Custom Name:</span>
+          <span class="device-field__value" id="info-custom-name">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Serial Number:</span>
+          <span class="device-field__value" id="info-serial-number">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Current State:</span>
+          <span class="device-field__value" id="info-current-state">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Process Type:</span>
+          <span class="device-field__value" id="info-process-type">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Process State:</span>
+          <span class="device-field__value" id="info-process-state">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">User Action:</span>
+          <span class="device-field__value" id="info-user-action">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Stage / Text:</span>
+          <span class="device-field__value" id="info-stage">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Sub Title:</span>
+          <span class="device-field__value" id="info-sub-title">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Current Temp:</span>
+          <span class="device-field__value" id="info-current-temp">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Target Temp:</span>
+          <span class="device-field__value" id="info-target-temp">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Gravity:</span>
+          <span class="device-field__value" id="info-gravity">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Beer Name:</span>
+          <span class="device-field__value" id="info-beer-name">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Beer Style:</span>
+          <span class="device-field__value" id="info-beer-style">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Session ID:</span>
+          <span class="device-field__value" id="info-session-id">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Active Session:</span>
+          <span class="device-field__value" id="info-active-session">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Software Version:</span>
+          <span class="device-field__value" id="info-software-version">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Device Type:</span>
+          <span class="device-field__value" id="info-device-type">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Online / Connection:</span>
+          <span class="device-field__value" id="info-online">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Updating:</span>
+          <span class="device-field__value" id="info-updating">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Needs Acid Cleaning:</span>
+          <span class="device-field__value" id="info-needs-acid-cleaning">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Last Online:</span>
+          <span class="device-field__value" id="info-last-online">—</span>
+        </div>
+        <div class="device-field">
+          <span class="device-field__label">Last State Change:</span>
+          <span class="device-field__value" id="info-last-state-change">—</span>
+        </div>
+        <details class="device-raw-json">
+          <summary>Raw API Response</summary>
+          <pre id="info-raw-json">No data yet — click Refresh to fetch</pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="log-section">
+      <h2>Console <button id="clear-log-btn" title="Clear log">✕</button></h2>
+      <div class="log-output" id="log-output"></div>
+    </section>
+  </main>
+
+  <div id="settings-modal" class="modal" style="display:none;">
+    <div class="modal__overlay" id="settings-overlay"></div>
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Settings</h3>
+        <button id="settings-close-btn" class="modal__close">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="settings-section">
+          <h4>MiniBrew API Token</h4>
+          <p class="settings-desc">Enter your MiniBrew API bearer token to authenticate with the device API. This overrides the token in <code>.env</code> and is stored encrypted on the server.</p>
+          <div class="settings-token-status" id="settings-token-status">
+            <span class="token-indicator token-indicator--unset">Not set</span>
+          </div>
+          <p class="settings-token-source" id="settings-token-source"></p>
+          <div class="settings-form">
+            <input type="password" id="settings-token-input" class="settings-token-input" placeholder="Paste your bearer token here" autocomplete="off">
+            <button id="settings-save-btn" class="settings-save-btn">Save &amp; Apply</button>
+          </div>
+          <div class="settings-actions">
+            <button id="settings-reset-btn" class="settings-reset-btn">Reset to .env default</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

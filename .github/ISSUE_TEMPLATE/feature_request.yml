@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature Description
+        A clear description of the feature you're requesting.
+
+        ## Motivation
+        Why do you need this feature? What problem does it solve?
+
+        ## Proposed Solution
+        How would you like it to work?
+
+        ## Alternatives Considered
+        Any alternative approaches you've considered?
+
+        ## Additional Context
+        Screenshots, mockups, links to similar features, etc.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - Low (nice to have)
+        - Medium (would improve UX significantly)
+        - High (blocking my workflow)
+        - Critical (safety or security issue)
+    validations:
+      required: false
+
+  - type: textarea
+    id: related
+    attributes:
+      label: "Related Issues or TODOs"
+      description: "Link to any related issues or TODO items"
+      placeholder: "Closes #123"
+    validations:
+      required: false

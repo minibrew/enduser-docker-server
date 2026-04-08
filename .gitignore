@@ -1,0 +1,62 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+secrets/
+*.pem
+*.key
+
+# Credentials (DO NOT commit these)
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp / build artifacts
+.tmp/
+tmp/
+*.tmp
+.cache/
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Local data (encrypted token storage — keep per-instance)
+# NOTE: /app/data/ is mounted as a Docker volume; never commit this
+data/
+
+# Type checking
+.mypy_cache/
+
+# Swagger / OpenAPI
+openapi.json

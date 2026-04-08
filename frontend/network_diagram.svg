@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" style="background:#0f1117;font-family:monospace;">
+  <!-- Title -->
+  <text x="20" y="30" fill="#f59e0b" font-size="18" font-weight="bold">MiniBrew Session Orchestrator — Network Architecture</text>
+
+  <!-- Browser -->
+  <rect x="30" y="80" width="160" height="80" rx="6" fill="#1a1d27" stroke="#2d3748" stroke-width="1.5"/>
+  <text x="110" y="105" fill="#e2e8f0" font-size="12" text-anchor="middle" font-weight="bold">Browser</text>
+  <text x="110" y="122" fill="#94a3b8" font-size="10" text-anchor="middle">http://localhost:8080</text>
+  <text x="110" y="138" fill="#64748b" font-size="10" text-anchor="middle">HTML / JS / CSS</text>
+
+  <!-- Nginx -->
+  <rect x="260" y="60" width="160" height="100" rx="6" fill="#1a1d27" stroke="#f59e0b" stroke-width="2"/>
+  <text x="340" y="85" fill="#f59e0b" font-size="13" text-anchor="middle" font-weight="bold">Nginx (frontend)</text>
+  <text x="340" y="102" fill="#94a3b8" font-size="10" text-anchor="middle">:80 → /usr/share/nginx/html</text>
+  <text x="340" y="116" fill="#94a3b8" font-size="10" text-anchor="middle">Proxies /session/*</text>
+  <text x="340" y="130" fill="#94a3b8" font-size="10" text-anchor="middle">Proxies /ws (WS upgrade)</text>
+  <text x="340" y="144" fill="#64748b" font-size="9" text-anchor="middle">port 8080 in docker-compose</text>
+
+  <!-- FastAPI Backend -->
+  <rect x="260" y="220" width="160" height="110" rx="6" fill="#1a1d27" stroke="#22c55e" stroke-width="2"/>
+  <text x="340" y="245" fill="#22c55e" font-size="13" text-anchor="middle" font-weight="bold">FastAPI Backend</text>
+  <text x="340" y="262" fill="#94a3b8" font-size="10" text-anchor="middle">port 8000 (uvicorn)</text>
+  <text x="340" y="276" fill="#94a3b8" font-size="10" text-anchor="middle">/ws  /verify  /devices</text>
+  <text x="340" y="290" fill="#94a3b8" font-size="10" text-anchor="middle">/sessions  /session/{id}/cmd</text>
+  <text x="340" y="304" fill="#94a3b8" font-size="10" text-anchor="middle">/kegs  /keg/{uuid}/cmd</text>
+  <text x="340" y="318" fill="#64748b" font-size="9" text-anchor="middle">polling_worker (2s interval)</text>
+
+  <!-- MiniBrew API (AWS) -->
+  <rect x="260" y="420" width="160" height="100" rx="6" fill="#1a1d27" stroke="#60a5fa" stroke-width="2"/>
+  <text x="340" y="445" fill="#60a5fa" font-size="13" text-anchor="middle" font-weight="bold">MiniBrew API (AWS)</text>
+  <text x="340" y="462" fill="#94a3b8" font-size="10" text-anchor="middle">api.minibrew.io</text>
+  <text x="340" y="476" fill="#94a3b8" font-size="10" text-anchor="middle">HTTPS :443</text>
+  <text x="340" y="490" fill="#94a3b8" font-size="10" text-anchor="middle">/v1/breweryoverview/</text>
+  <text x="340" y="504" fill="#94a3b8" font-size="10" text-anchor="middle">/v1/devices/  /v1/sessions/</text>
+
+  <!-- MiniBrew Device -->
+  <rect x="30" y="440" width="160" height="80" rx="6" fill="#1a1d27" stroke="#ef4444" stroke-width="2"/>
+  <text x="110" y="465" fill="#ef4444" font-size="12" text-anchor="middle" font-weight="bold">MiniBrew Device</text>
+  <text x="110" y="482" fill="#94a3b8" font-size="10" text-anchor="middle">UUID: 2403B0994-SHNCANKM</text>
+  <text x="110" y="496" fill="#94a3b8" font-size="10" text-anchor="middle">Stage: Needs cleaning</text>
+  <text x="110" y="510" fill="#64748b" font-size="9" text-anchor="middle">UA: 12 (Needs cleaning)</text>
+
+  <!-- Docker boundary -->
+  <rect x="248" y="40" width="184" height="300" rx="8" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="340" y="55" fill="#374151" font-size="10" text-anchor="middle">Docker Network</text>
+
+  <!-- Arrows -->
+  <!-- Browser to Nginx -->
+  <line x1="190" y1="110" x2="260" y2="100" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="225" y="100" fill="#4a5568" font-size="9">HTTP/WS</text>
+
+  <!-- Nginx to Backend (HTTP) -->
+  <line x1="340" y1="160" x2="340" y2="220" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="358" y="195" fill="#4a5568" font-size="9">proxy</text>
+
+  <!-- Backend to API -->
+  <line x1="340" y1="330" x2="340" y2="420" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="358" y="380" fill="#60a5fa" font-size="9">GET /v1/breweryoverview/</text>
+  <text x="358" y="394" fill="#60a5fa" font-size="9">Bearer + client: Breweryportal</text>
+
+  <!-- Device to API (dotted) -->
+  <line x1="190" y1="470" x2="260" y2="450" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="205" y="455" fill="#ef4444" font-size="9">device telemetry</text>
+
+  <!-- Device to Brewer Overview (dotted) -->
+  <line x1="110" y1="440" x2="110" y2="440" r="0" />
+  <path d="M 190 480 Q 200 420 260 450" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,4" fill="none"/>
+  <text x="200" y="470" fill="#ef4444" font-size="9">reports to</text>
+
+  <!-- WS broadcast -->
+  <path d="M 420 275 Q 450 275 450 110 Q 450 60 460 60 Q 490 60 490 110 Q 490 180 420 180" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,4" fill="none"/>
+  <text x="455" y="150" fill="#22c55e" font-size="9">WS push</text>
+
+  <!-- Poll cycle -->
+  <path d="M 260 300 Q 220 370 260 420" stroke="#4a5568" stroke-width="1" stroke-dasharray="3,3" fill="none"/>
+  <text x="215" y="360" fill="#4a5568" font-size="9">poll (2s)</text>
+
+  <!-- Legend -->
+  <rect x="520" y="80" width="360" height="280" rx="6" fill="#1a1d27" stroke="#2d3748"/>
+  <text x="540" y="102" fill="#e2e8f0" font-size="12" font-weight="bold">Endpoint Legend</text>
+
+  <text x="540" y="124" fill="#f59e0b" font-size="10" font-weight="bold">Nginx (port 8080):</text>
+  <text x="545" y="140" fill="#94a3b8" font-size="9">GET /verify   → /v1/breweryoverview/</text>
+  <text x="545" y="154" fill="#94a3b8" font-size="9">GET /devices  → /v1/devices/</text>
+  <text x="545" y="168" fill="#94a3b8" font-size="9">GET /sessions → session list</text>
+  <text x="545" y="182" fill="#94a3b8" font-size="9">POST /sessions → create brew/clean/acid</text>
+  <text x="545" y="196" fill="#94a3b8" font-size="9">POST /session/{id}/cmd → PUT /v1/s/{id}/</text>
+  <text x="545" y="210" fill="#94a3b8" font-size="9">DELETE /sessions/{id} → terminate</text>
+  <text x="545" y="224" fill="#94a3b8" font-size="9">GET /kegs  → /v1/kegs/</text>
+  <text x="545" y="238" fill="#94a3b8" font-size="9">POST /keg/{uuid}/cmd → send command</text>
+  <text x="545" y="252" fill="#94a3b8" font-size="9">WS /ws → real-time push</text>
+
+  <text x="540" y="274" fill="#22c55e" font-size="10" font-weight="bold">Session Commands (PUT /v1/sessions/{id}/):</text>
+  <text x="545" y="290" fill="#94a3b8" font-size="9">type 2 = wake device (clear pending error)</text>
+  <text x="545" y="304" fill="#94a3b8" font-size="9">type 3 = generic command</text>
+  <text x="545" y="318" fill="#94a3b8" font-size="9">type 6 = update_recipe (serving_temperature)</text>
+  <text x="545" y="336" fill="#94a3b8" font-size="9">Command guard: checked against user_action</text>
+
+  <!-- User Action legend -->
+  <rect x="520" y="380" width="360" height="150" rx="6" fill="#1a1d27" stroke="#2d3748"/>
+  <text x="540" y="402" fill="#e2e8f0" font-size="12" font-weight="bold">User Action → Allowed Commands</text>
+  <text x="545" y="420" fill="#94a3b8" font-size="9">UA 12 "Needs cleaning"   → [2, 3, 32]</text>
+  <text x="545" y="434" fill="#94a3b8" font-size="9">UA 21 "Start brewing"   → [2, 3]</text>
+  <text x="545" y="448" fill="#94a3b8" font-size="9">UA 26 "Prepare ferment" → [2, 3]</text>
+  <text x="545" y="462" fill="#94a3b8" font-size="9">UA 32 "Start cleaning"  → [2, 3]</text>
+  <text x="545" y="476" fill="#94a3b8" font-size="9">UA 37 "CIP Finished"    → [2, 3]</text>
+  <text x="545" y="490" fill="#64748b" font-size="9">Commands outside allowed set are rejected</text>
+  <text x="545" y="504" fill="#64748b" font-size="9">Session type: 0=brew, clean_minibrew, acid_clean_minibrew</text>
+  <text x="545" y="518" fill="#64748b" font-size="9">All API calls require: client: Breweryportal + Bearer token</text>
+
+  <!-- Arrowhead def -->
+  <defs>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+</svg>
