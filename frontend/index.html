@@ -241,7 +241,16 @@
     </section>
 
     <section class="log-section">
-      <h2>Console <button id="clear-log-btn" title="Clear log">✕</button></h2>
+      <h2>
+        Console
+        <div class="console-controls">
+          <label class="console-suppress">
+            <input type="checkbox" id="suppress-ws-logs" checked>
+            Suppress WS connect/disconnect
+          </label>
+          <button id="clear-log-btn" title="Clear log">✕</button>
+        </div>
+      </h2>
       <div class="log-output" id="log-output"></div>
     </section>
   </main>

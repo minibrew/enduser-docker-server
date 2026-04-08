@@ -1,5 +1,7 @@
 # MiniBrew Session Orchestrator
 
+![MiniBrew Logo](frontend/MB_logo.png)
+
 A production-grade, real-time MiniBrew brewing session orchestrator. Monitor and control your MiniBrew device — brewing states, fermentation, keg management, and CIP (clean-in-place) — via a live WebSocket dashboard backed by the MiniBrew API.
 
 ---

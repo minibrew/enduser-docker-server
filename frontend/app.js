@@ -8,8 +8,13 @@ let pendingSessionType = null;
 let activeSource = "overview";
 let autoRefreshInterval = null;
 let autoRefreshSeconds = 0;
+let suppressWsLogs = true;
 
 function log(msg, type = "info") {
+  // Suppress WebSocket connect/disconnect noise when enabled.
+  if (suppressWsLogs && (type === "info" || type === "warn")) {
+    if (msg.includes("WebSocket connected") || msg.includes("WebSocket disconnected")) return;
+  }
   const el = document.getElementById("log-output");
   if (!el) return;
   const entry = document.createElement("div");
@@ -644,6 +649,11 @@ document.getElementById("clear-log-btn")?.addEventListener("click", () => {
   const el = document.getElementById("log-output");
   if (el) el.innerHTML = "";
   log("Log cleared");
+});
+
+document.getElementById("suppress-ws-logs")?.addEventListener("change", (e) => {
+  suppressWsLogs = e.target.checked;
+  log(`WebSocket logs ${suppressWsLogs ? "suppressed" : "shown"}`);
 });
 
 // Set default active source

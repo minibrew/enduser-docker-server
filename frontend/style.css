@@ -600,6 +600,29 @@ section h2 {
   justify-content: space-between;
 }
 
+.console-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.console-suppress {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 400;
+  text-transform: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.console-suppress input[type="checkbox"] {
+  accent-color: #f59e0b;
+  cursor: pointer;
+}
+
 #clear-log-btn {
   background: none;
   color: #64748b;
