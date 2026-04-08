@@ -137,7 +137,7 @@ const USER_ACTION_MAP = {
   36: "Finished cleaning", 37: "CIP Finished",
 };
 
-const PROCESS_TYPE_MAP = { 0: "Brewing", 1: "Cleaning", 2: "Fermentation" };
+const PROCESS_TYPE_MAP = { 0: "Brewing", 1: "Fermentation", 2: "Cleaning" };
 const DEVICE_TYPE_MAP = { 0: "Standard", 1: "Brew", 2: "Keg", 3: "Climate" };
 const CONNECTION_STATUS_MAP = { 0: "Offline", 1: "Online" };
 
