@@ -218,13 +218,6 @@ class SessionService:
         """
         return get_state_store().list_sessions()
 
-    def get_session(self, session_id: str) -> dict[str, Any] | None:
-        """
-        Return a cached session by ID without hitting the API.
-        Returns None if the session has not been seen yet.
-        """
-        return get_state_store().get_session(session_id)
-
 
 def user_action_label(action_id: int) -> str:
     """Map a user_action integer to its operator-facing label."""

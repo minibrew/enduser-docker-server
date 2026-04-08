@@ -10,12 +10,10 @@ The lifespan context manager handles startup (service init, token loading,
 first API sync) and shutdown (stop the polling worker cleanly).
 """
 
-import asyncio
 import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -28,7 +26,6 @@ from polling_worker import PollingWorker
 from websocket_manager import get_websocket_manager
 from event_bus import get_event_bus
 from state_store import get_state_store
-from diff_engine import should_broadcast, compute_diff
 from settings_store import (
     get_token as get_stored_token,
     save_token,
