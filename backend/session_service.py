@@ -23,37 +23,8 @@ END_SESSION:
 from typing import Any
 
 from minibrew_client import MiniBrewClient
+from state_engine import USER_ACTION_LABELS
 from state_store import get_state_store
-
-
-# Duplicate of USER_ACTION_LABELS in state_engine.py – kept here for
-# convenience in command-result formatting.  In a future refactor
-# this module should import from state_engine directly.
-USER_ACTION_LABELS: dict[int, str] = {
-    0:  "None",
-    2:  "Prepare cleaning",
-    3:  "Add cleaning agent",
-    4:  "Fill water",
-    5:  "Ready to clean",
-    12: "Needs cleaning",
-    13: "Needs acid cleaning",
-    21: "Start brewing",
-    22: "Add ingredients",
-    23: "Mash in",
-    24: "Heat to mash",
-    25: "Mash done",
-    26: "Prepare fermentation",
-    27: "Cool to fermentation",
-    28: "Add yeast",
-    30: "Fermentation complete",
-    31: "Transfer to serving",
-    32: "Start cleaning",
-    33: "Rinse",
-    34: "Acid clean",
-    35: "Sanitize",
-    36: "Finished cleaning",
-    37: "CIP Finished",
-}
 
 
 class SessionService:
@@ -198,16 +169,24 @@ class SessionService:
         get_state_store().set_session(str(session_id), result)
         return result
 
-    async def get_user_action_details(
+    def get_session_cached(self, session_id: str) -> dict[str, Any] | None:
+        """Return a session from the local cache without hitting the API."""
+        return get_state_store().get_session(str(session_id))
+
+    async def get_user_action_steps(
         self,
         session_id: str,
         action_id: int,
     ) -> dict[str, Any]:
         """
-        Fetch operator guidance for a specific user_action ID.
-        Returns step-by-step instructions the UI can display to the operator.
+        Fetch step-by-step operator guidance for a specific user_action ID.
+        Returns title, description, and action_steps[] with images/videos.
         """
-        return await self._client.get_user_action(session_id, action_id)
+        return await self._client.get_user_action_steps(str(session_id), action_id)
+
+    async def get_cleaning_logs(self, session_id: str) -> dict[str, Any]:
+        """Fetch cleaning process logs for a session."""
+        return await self._client.get_cleaning_logs(str(session_id))
 
     # ── State store access ──────────────────────────────────────────────
 

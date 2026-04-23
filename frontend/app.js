@@ -1,106 +1,13 @@
-const WS_BASE = window.location.hostname === "localhost" ? "ws://localhost:8000" : `ws://${window.location.host}`;
-let ws = null;
-let currentSessionId = null;
-let currentKegUuid = null;
-let allowedCommands = [];
-let kegsData = [];
-let pendingSessionType = null;
-let activeSource = "overview";
-let autoRefreshInterval = null;
-let autoRefreshSeconds = 0;
-let suppressWsLogs = true;
+"use strict";
 
-function log(msg, type = "info") {
-  // Suppress WebSocket connect/disconnect noise when enabled.
-  if (suppressWsLogs && (type === "info" || type === "warn")) {
-    if (msg.includes("WebSocket connected") || msg.includes("WebSocket disconnected")) return;
-  }
-  const el = document.getElementById("log-output");
-  if (!el) return;
-  const entry = document.createElement("div");
-  entry.className = `log-entry log-entry--${type}`;
-  const time = new Date().toLocaleTimeString();
-  entry.textContent = `[${time}] ${msg}`;
-  el.appendChild(entry);
-  el.scrollTop = el.scrollHeight;
-}
-function logError(msg) { log(msg, "error"); }
-function logSuccess(msg) { log(msg, "success"); }
-function logWarn(msg) { log(msg, "warn"); }
+// ── Constants ────────────────────────────────────────────────────────────────
 
-function connect() {
-  ws = new WebSocket(`${WS_BASE}/ws`);
-  ws.onopen = () => {
-    document.getElementById("connection-indicator").textContent = "🟢";
-    log("WebSocket connected");
-  };
-  ws.onclose = () => {
-    document.getElementById("connection-indicator").textContent = "⚫";
-    logWarn("WebSocket disconnected — reconnecting in 3s");
-    setTimeout(connect, 3000);
-  };
-  ws.onerror = () => {
-    document.getElementById("connection-indicator").textContent = "🔴";
-    logError("WebSocket error");
-  };
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type === "initial_state") handleInitialState(msg.payload);
-    else if (msg.type === "device_update") handleDeviceUpdate(msg.payload);
-    else if (msg.type === "session_update") handleSessionUpdate(msg.payload);
-    else if (msg.type === "system_event") handleSystemEvent(msg);
-  };
-}
+const WS_BASE = window.location.hostname === "localhost"
+  ? "ws://localhost:8000"
+  : `ws://${window.location.host}`;
 
-function handleInitialState(payload) {
-  renderSessions(payload.sessions || []);
-  renderKegs(payload.kegs || []);
-  if (payload.device) {
-    updateDeviceUI(payload.device);
-    if (payload.device._raw) displayRawJson(payload.device._raw);
-  }
-}
-
-function handleDeviceUpdate(payload) {
-  if (payload.sessions) renderSessions(payload.sessions);
-  if (payload.kegs) renderKegs(payload.kegs);
-}
-
-function handleSessionUpdate(payload) {
-  renderSessions(payload.sessions ? [payload] : []);
-}
-
-function handleSystemEvent(msg) {
-  log(`System event: ${msg.payload ? JSON.stringify(msg.payload) : msg.type}`, "warn");
-}
-
-function prettyJson(obj) {
-  return JSON.stringify(obj, null, 2);
-}
-
-function displayRawJson(data) {
-  const el = document.getElementById("info-raw-json");
-  if (el) el.textContent = prettyJson(data);
-}
-
-function fmt(v) {
-  return v == null || v === "" ? null : v;
-}
-
-function setField(id, value, cls) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = value;
-  el.className = "device-field__value";
-  if (cls) el.classList.add(cls);
-}
-
-function label(name, value, cls) {
-  const el = document.getElementById(`info-${name}`);
-  if (!el) return;
-  el.textContent = value;
-  el.className = `device-field__value${cls ? " " + cls : ""}`;
-}
+const JWT_TOKEN_KEY = "minibrew_jwt_token";
+const REFRESH_TOKEN_KEY = "minibrew_refresh_token";
 
 const PROCESS_STATE_MAP = {
   0: "IDLE_STATE", 5: "MANUAL_CONTROL_STATE", 6: "PREPARE_RINSE_STATE",
@@ -138,296 +45,494 @@ const USER_ACTION_MAP = {
 };
 
 const PROCESS_TYPE_MAP = { 0: "Brewing", 1: "Fermentation", 2: "Cleaning" };
-const DEVICE_TYPE_MAP = { 0: "Standard", 1: "Brew", 2: "Keg", 3: "Climate" };
-const CONNECTION_STATUS_MAP = { 0: "Offline", 1: "Online" };
-
-const PHASE_MAP = {
-  24: "BREWING", 30: "BREWING", 31: "BREWING", 40: "BREWING",
-  50: "BREWING", 51: "BREWING", 52: "BREWING", 60: "BREWING",
-  70: "BREWING", 71: "BREWING", 74: "BREWING",
-  75: "FERMENTATION", 80: "FERMENTATION", 84: "FERMENTATION",
-  88: "SERVING", 90: "SERVING", 91: "SERVING", 92: "SERVING", 93: "SERVING",
-  101: "CLEANING", 103: "CLEANING", 108: "CLEANING", 109: "CLEANING",
-  111: "CLEANING", 112: "CLEANING", 113: "CLEANING", 114: "CLEANING",
-};
-
 const FAILURE_STATES = [71, 84, 93, 109];
+const SESSION_STATUS_MAP = { 1: "Active", 2: "In Progress", 4: "Done", 6: "Failed" };
 
-function stateLabel(v, fallback) {
-  if (v == null) return { text: fallback || "—", cls: "device-field__value--null" };
+const CMD_DEFINITIONS = [
+  { cmd: "END_SESSION",       type: null,  allowedUA: [], desc: "Terminate and delete the session from the device" },
+  { cmd: "NEXT_STEP",         type: 3,    allowedUA: "*", desc: "Advance to the next brewing step" },
+  { cmd: "BYPASS_USER_ACTION", type: 3,  allowedUA: "*", desc: "Bypass the pending user action prompt" },
+  { cmd: "CHANGE_TEMPERATURE", type: 6,  allowedUA: [26,27,28,30,31,32], desc: "Set target fermentation/serving temperature" },
+  { cmd: "GO_TO_MASH",        type: 3,   allowedUA: [21,22,23,24], desc: "Jump directly to the mash phase" },
+  { cmd: "GO_TO_BOIL",        type: 3,   allowedUA: [23,24,25], desc: "Jump directly to the boil phase" },
+  { cmd: "FINISH_BREW_SUCCESS", type: 3,  allowedUA: [30], desc: "Mark the brew as completed successfully" },
+  { cmd: "FINISH_BREW_FAILURE", type: 3,   allowedUA: [71,84], desc: "Mark the brew as failed" },
+  { cmd: "CLEAN_AFTER_BREW",  type: 3,   allowedUA: [30,31], desc: "Begin post-brew cleaning cycle" },
+  { cmd: "BYPASS_CLEAN",      type: 3,   allowedUA: [32,33,34,35,36,37], desc: "Skip the cleaning cycle" },
+];
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+let ws = null;
+let sessionsData = [];
+let kegsData = [];
+let recipesData = [];
+let selectedRecipeId = null;
+let currentSessionId = null;
+let currentKegUuid = null;
+let activeSource = "overview";
+let autoRefreshInterval = null;
+let autoRefreshSeconds = 2;
+let suppressWsLogs = true;
+let activeSessionFromDevice = null;
+let allDevices = [];   // [{uuid, custom_name, _bucket, ...}, ...]
+let selectedBucket = null;
+let selectedSessionDetail = null;
+let currentUser = null;   // {id, username} from JWT
+
+// ── Utilities ───────────────────────────────────────────────────────────────
+
+function sessionKey(s) { return s?.id ?? s?.session_id ?? null; }
+
+function fmt(v) { return v == null || v === "" ? null : v; }
+
+function stateLabel(v) {
+  if (v == null) return { text: "—", cls: "val-null" };
   const known = PROCESS_STATE_MAP[v];
-  if (known) return { text: `${v} (${known})`, cls: "device-field__value--code" };
-  return { text: `${v} (NULL)`, cls: "device-field__value--null" };
+  if (known) return { text: `${v} (${known})`, cls: "val-code" };
+  return { text: `${v} (NULL)`, cls: "val-null" };
 }
 
 function uaLabel(v) {
   if (v == null) return { text: "—", cls: "" };
   const known = USER_ACTION_MAP[v];
-  if (known) return { text: `${v} (${known})`, cls: "device-field__value--code" };
-  return { text: `${v} (NULL)`, cls: "device-field__value--null" };
+  if (known) return { text: `${v} (${known})`, cls: "val-code" };
+  return { text: `${v} (NULL)`, cls: "val-null" };
 }
 
-function boolLabel(v) {
-  if (v == null) return "—";
-  return v ? "Yes" : "No";
-}
+function boolLabel(v) { return v ? "Yes" : "No"; }
 
 function phaseOf(state) {
-  return PHASE_MAP[state] || null;
+  const m = {
+    24:"BREWING",30:"BREWING",31:"BREWING",40:"BREWING",
+    50:"BREWING",51:"BREWING",52:"BREWING",60:"BREWING",
+    70:"BREWING",71:"BREWING",74:"BREWING",
+    75:"FERMENTATION",80:"FERMENTATION",84:"FERMENTATION",
+    88:"SERVING",90:"SERVING",91:"SERVING",92:"SERVING",93:"SERVING",
+    101:"CLEANING",103:"CLEANING",108:"CLEANING",109:"CLEANING",
+    111:"CLEANING",112:"CLEANING",113:"CLEANING",114:"CLEANING",
+  };
+  return m[state] || null;
 }
 
-function renderBreweryOverview(payload) {
-  let firstDevice = null;
-  for (const key of ["brew_clean_idle", "fermenting", "serving", "brew_acid_clean_idle"]) {
-    const list = payload[key];
-    if (list && list.length > 0) { firstDevice = list[0]; break; }
-  }
-
-  const uuid = firstDevice ? (firstDevice.uuid || firstDevice.serial_number || null) : null;
-  const ps = firstDevice?.process_state ?? null;
-  const stateInfo = stateLabel(ps);
-  const uaInfo = uaLabel(firstDevice?.user_action ?? null);
-  const phase = phaseOf(ps);
-  const isFail = FAILURE_STATES.includes(ps);
-
-  updateUuidDisplay(uuid);
-
-  label("uuid", uuid ?? "null", uuid ? "device-field__value--uuid" : "device-field__value--null");
-  label("custom-name", firstDevice?.title ?? "—");
-  label("serial-number", firstDevice?.serial_number ?? "—");
-
-  label("current-state", firstDevice?.current_state != null ? `${firstDevice.current_state} (${PROCESS_STATE_MAP[firstDevice.current_state] || "NULL"})` : "—",
-    firstDevice?.current_state != null && !PROCESS_STATE_MAP[firstDevice.current_state] ? "device-field__value--null" : "");
-
-  label("process-type", firstDevice?.process_type != null
-    ? `${firstDevice.process_type} (${PROCESS_TYPE_MAP[firstDevice.process_type] || "Unknown"})`
-    : "—",
-    firstDevice?.process_type != null && !PROCESS_TYPE_MAP[firstDevice.process_type] ? "device-field__value--null" : "");
-
-  label("process-state", stateInfo.text, stateInfo.cls);
-  label("user-action", uaInfo.text, uaInfo.cls);
-
-  label("stage", firstDevice?.stage ?? "—");
-
-  label("sub-title", firstDevice?.sub_title ?? "—");
-  label("current-temp", firstDevice?.current_temp != null ? `${firstDevice.current_temp}°C` : "—");
-  label("target-temp", firstDevice?.target_temp != null ? `${firstDevice.target_temp}°C` : "—");
-  label("gravity", firstDevice?.gravity ?? "—");
-  label("beer-name", firstDevice?.beer_name ?? "—");
-  label("beer-style", firstDevice?.beer_style ?? "—");
-  label("session-id", firstDevice?.session_id ?? "—");
-  label("active-session", firstDevice?.active_session ?? "—");
-  label("software-version", firstDevice?.software_version ?? "—");
-  label("device-type", firstDevice?.device_type != null
-    ? `${firstDevice.device_type} (${DEVICE_TYPE_MAP[firstDevice.device_type] || "Unknown"})`
-    : "—",
-    firstDevice?.device_type != null && !DEVICE_TYPE_MAP[firstDevice.device_type] ? "device-field__value--null" : "");
-
-  label("online", firstDevice?.online != null ? boolLabel(firstDevice.online) : "—");
-  label("updating", firstDevice?.updating != null ? boolLabel(firstDevice.updating) : "—");
-  label("needs-acid-cleaning", firstDevice?.needs_acid_cleaning != null ? boolLabel(firstDevice.needs_acid_cleaning) : "—");
-  label("last-online", "—");
-  label("last-state-change", "—");
-
-  const headerStateEl = document.getElementById("process-state");
-  const headerPhaseEl = document.getElementById("phase-label");
-  if (headerStateEl) headerStateEl.textContent = isFail ? `FAIL: ${stateInfo.text}` : stateInfo.text;
-  if (headerPhaseEl) headerPhaseEl.textContent = phase ? `[${phase}]` : "—";
-
-  return uuid;
+function prettyJson(obj) {
+  return JSON.stringify(obj, null, 2);
 }
 
-function renderDevices(payload) {
-  const devices = payload.devices || [];
-  const first = devices[0] || null;
-  const uuid = first ? (first.uuid || first.serial_number || null) : null;
-  const ps = first?.process_state ?? null;
-  const stateInfo = stateLabel(ps);
-  const uaInfo = uaLabel(first?.user_action ?? null);
-  const phase = phaseOf(ps);
-  const isFail = FAILURE_STATES.includes(ps);
+// ── JWT helpers ─────────────────────────────────────────────────────────────
 
-  updateUuidDisplay(uuid);
-
-  label("uuid", uuid ?? "null", uuid ? "device-field__value--uuid" : "device-field__value--null");
-  label("custom-name", first?.custom_name ?? "—");
-  label("serial-number", first?.serial_number ?? "—");
-
-  label("current-state", first?.current_state != null
-    ? `${first.current_state} (${PROCESS_STATE_MAP[first.current_state] || "NULL"})`
-    : "—",
-    first?.current_state != null && !PROCESS_STATE_MAP[first.current_state] ? "device-field__value--null" : "");
-
-  label("process-type", first?.process_type != null
-    ? `${first.process_type} (${PROCESS_TYPE_MAP[first.process_type] || "Unknown"})`
-    : "—",
-    first?.process_type != null && !PROCESS_TYPE_MAP[first.process_type] ? "device-field__value--null" : "");
-
-  label("process-state", stateInfo.text, stateInfo.cls);
-  label("user-action", uaInfo.text, uaInfo.cls);
-  label("stage", first?.text ?? "—");
-  label("sub-title", "—");
-  label("current-temp", "—");
-  label("target-temp", "—");
-  label("gravity", "—");
-  label("beer-name", "—");
-  label("beer-style", "—");
-  label("session-id", "—");
-  label("active-session", first?.active_session ?? "—");
-  label("software-version", first?.software_version ?? "—");
-  label("device-type", first?.device_type != null
-    ? `${first.device_type} (${DEVICE_TYPE_MAP[first.device_type] || "Unknown"})`
-    : "—",
-    first?.device_type != null && !DEVICE_TYPE_MAP[first.device_type] ? "device-field__value--null" : "");
-
-  const connStatus = first?.connection_status ?? null;
-  label("online", connStatus != null
-    ? `${connStatus} (${CONNECTION_STATUS_MAP[connStatus] || "Unknown"})`
-    : "—",
-    connStatus === 1 ? "device-field__value--green" : (connStatus === 0 ? "device-field__value--null" : ""));
-
-  label("updating", first?.updating != null ? boolLabel(first.updating) : "—");
-  label("needs-acid-cleaning", "—");
-  label("last-online", first?.last_time_online ? formatDate(first.last_time_online) : "—");
-  label("last-state-change", first?.last_process_state_change ? formatDate(first.last_process_state_change) : "—");
-
-  const headerStateEl = document.getElementById("process-state");
-  const headerPhaseEl = document.getElementById("phase-label");
-  if (headerStateEl) headerStateEl.textContent = isFail ? `FAIL: ${stateInfo.text}` : stateInfo.text;
-  if (headerPhaseEl) headerPhaseEl.textContent = phase ? `[${phase}]` : "—";
-
-  return uuid;
+function getJwtToken() { return localStorage.getItem(JWT_TOKEN_KEY); }
+function setJwtToken(t) { localStorage.setItem(JWT_TOKEN_KEY, t); }
+function clearJwtToken() {
+  localStorage.removeItem(JWT_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  currentUser = null;
 }
 
-function formatDate(iso) {
-  if (!iso) return "—";
-  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+function showAuthGate() {
+  document.getElementById("auth-gate").style.display = "flex";
+  document.getElementById("token-gate").style.display = "none";
+  document.getElementById("navbar-username").style.display = "none";
+  document.getElementById("navbar-logout-btn").style.display = "none";
 }
 
-async function refreshDeviceInfo() {
-  log("Fetching /verify (breweryoverview)...");
-  try {
-    const resp = await fetch("/verify");
-    if (!resp.ok) { logError(`Verify failed (${resp.status}): ${await resp.text()}`); return; }
-    const data = await resp.json();
-    if (data.status === "error") { logError(`breweryoverview error: ${data.error}`); displayRawJson({error: data.error}); return; }
-    logSuccess("breweryoverview fetched OK");
-    const uuid = renderBreweryOverview(data.data);
-    displayRawJson(data.data);
-    log(`breweryoverview — UUID: ${uuid ?? "null"}`);
-  } catch (e) { logError(`Verify request failed: ${e.message}`); }
+function showTokenGate() {
+  document.getElementById("auth-gate").style.display = "none";
+  document.getElementById("token-gate").style.display = "flex";
+  document.getElementById("gate-token-input").value = "";
 }
 
-async function refreshDevices() {
-  log("Fetching /devices (v1/devices)...");
-  try {
-    const resp = await fetch("/devices");
-    if (!resp.ok) { logError(`Devices failed (${resp.status}): ${await resp.text()}`); return; }
-    const data = await resp.json();
-    if (data.status === "error") { logError(`Devices API error: ${data.error}`); displayRawJson({error: data.error}); return; }
-    logSuccess(`/devices returned ${data.devices?.length ?? 0} device(s)`);
-    const uuid = renderDevices(data);
-    displayRawJson({devices: data.devices});
-    log(`v1/devices — UUID: ${uuid ?? "null"}`);
-  } catch (e) { logError(`Devices request failed: ${e.message}`); }
+function showDashboard(user) {
+  currentUser = user;
+  document.getElementById("auth-gate").style.display = "none";
+  document.getElementById("token-gate").style.display = "none";
+  const usernameEl = document.getElementById("navbar-username");
+  const logoutBtn = document.getElementById("navbar-logout-btn");
+  if (usernameEl) { usernameEl.textContent = user.username; usernameEl.style.display = ""; }
+  if (logoutBtn) logoutBtn.style.display = "";
+  checkTokenAndGate();
 }
 
-function updateUuidDisplay(uuid) {
-  const headerEl = document.getElementById("device-uuid");
-  if (headerEl) {
-    if (uuid) {
-      headerEl.textContent = `UUID: ${uuid}`;
-      headerEl.style.color = "";
-      headerEl.classList.remove("status-bar__uuid--null");
-    } else {
-      headerEl.textContent = "UUID: null";
-      headerEl.style.color = "#ef4444";
-      headerEl.classList.add("status-bar__uuid--null");
+function handleAuthError() {
+  clearJwtToken();
+  showAuthGate();
+}
+
+// ── Auth-fetch wrapper ────────────────────────────────────────────────────────
+
+async function fetchWithAuth(url, options = {}) {
+  const token = getJwtToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const resp = await fetch(url, { ...options, headers });
+  if (resp.status === 401) {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refreshToken) {
+      const refreshResp = await fetch("/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (refreshResp.ok) {
+        const data = await refreshResp.json();
+        setJwtToken(data.access_token);
+        localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+        headers["Authorization"] = `Bearer ${data.access_token}`;
+        const retryResp = await fetch(url, { ...options, headers });
+        if (retryResp.status === 401) { handleAuthError(); return null; }
+        return retryResp;
+      }
     }
+    handleAuthError();
+    return null;
   }
-  const infoEl = document.getElementById("info-uuid");
-  if (infoEl) {
-    infoEl.textContent = uuid ?? "null";
-    infoEl.style.color = uuid ? "" : "#ef4444";
-    infoEl.classList.toggle("device-field__value--null", !uuid);
+  return resp;
+}
+
+// ── Logging ─────────────────────────────────────────────────────────────────
+
+function log(msg, type = "info") {
+  if (suppressWsLogs && (type === "info" || type === "warn")) {
+    if (msg.includes("WebSocket connected") || msg.includes("WebSocket disconnected")) return;
+  }
+  const el = document.getElementById("log-output");
+  if (!el) return;
+  const entry = document.createElement("div");
+  entry.className = `log-entry log-${type}`;
+  const time = new Date().toLocaleTimeString();
+  entry.textContent = `[${time}] ${msg}`;
+  el.appendChild(entry);
+  el.scrollTop = el.scrollHeight;
+}
+const logError = (m) => log(m, "error");
+const logSuccess = (m) => log(m, "success");
+const logWarn = (m) => log(m, "warn");
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+
+function connect() {
+  ws = new WebSocket(`${WS_BASE}/ws`);
+  ws.onopen = () => {
+    document.getElementById("connection-indicator").textContent = "🟢";
+    log("WebSocket connected");
+  };
+  ws.onclose = () => {
+    document.getElementById("connection-indicator").textContent = "⚫";
+    logWarn("WebSocket disconnected — reconnecting in 3s");
+    setTimeout(connect, 3000);
+  };
+  ws.onerror = () => {
+    document.getElementById("connection-indicator").textContent = "🔴";
+    logError("WebSocket error");
+  };
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === "initial_state") handleInitialState(msg.payload);
+    else if (msg.type === "device_update") handleDeviceUpdate(msg.payload);
+    else if (msg.type === "session_update") handleSessionUpdate(msg.payload);
+    else if (msg.type === "bucket_changed") handleBucketChanged(msg.payload);
+    else if (msg.type === "system_event") log(JSON.stringify(msg), "warn");
+  };
+}
+
+function wsSend(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+// ── WebSocket handlers ──────────────────────────────────────────────────────
+
+function handleInitialState(payload) {
+  allDevices = payload.devices || [];
+  selectedBucket = payload.selected_bucket || null;
+  sessionsData = payload.sessions || [];
+  kegsData = payload.kegs || [];
+  activeSessionFromDevice = payload.device?.active_session ?? null;
+
+  populateDeviceDropdown();
+  if (selectedBucket) selectBucketInDropdown(selectedBucket);
+  renderSessions(sessionsData);
+  renderKegs(kegsData);
+  updateDeviceUI(payload.device);
+  refreshCommandsTable();
+  buildCodeTables();
+}
+
+function handleDeviceUpdate(payload) {
+  allDevices = payload.devices || [];
+  selectedBucket = payload.selected_bucket || selectedBucket;
+  sessionsData = payload.sessions || sessionsData;
+  kegsData = payload.kegs || kegsData;
+
+  populateDeviceDropdown();
+  if (selectedBucket) selectBucketInDropdown(selectedBucket);
+  renderSessions(sessionsData);
+  renderKegs(kegsData);
+
+  const selectedDevice = payload.devices?.find(d =>
+    `${d._bucket || ""}` === `${selectedBucket || ""}`) || payload.devices?.[0];
+  if (selectedDevice) updateDeviceUI({ ...selectedDevice, _raw: selectedDevice });
+}
+
+function handleBucketChanged(payload) {
+  selectedBucket = payload.bucket;
+  sessionsData = payload.sessions || sessionsData;
+  selectBucketInDropdown(payload.bucket);
+  const dev = allDevices.find(d => d._bucket === payload.bucket);
+  if (dev) updateDeviceUI({ ...dev, _raw: dev });
+  renderSessions(sessionsData);
+}
+
+function handleSessionUpdate(payload) {
+  if (payload.sessions) {
+    sessionsData = payload.sessions;
+    renderSessions(sessionsData);
   }
 }
 
-function setActiveSource(source) {
-  activeSource = source;
-  document.querySelectorAll(".refresh-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.source === source);
-  });
-  if (autoRefreshSeconds > 0) startAutoRefresh(autoRefreshSeconds);
+// ── Device dropdown ─────────────────────────────────────────────────────────
+
+function populateDeviceDropdown() {
+  const sel = document.getElementById("device-select");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— select device —</option>';
+  for (const dev of allDevices) {
+    const uuid = dev.uuid || dev.serial_number || dev._bucket || "?";
+    const name = dev.title || dev.custom_name || uuid;
+    const bucket = dev._bucket || "";
+    const isActive = bucket === selectedBucket;
+    const opt = document.createElement("option");
+    opt.value = bucket;
+    opt.textContent = `${name} (${uuid})${isActive ? " ★" : ""}`;
+    opt.dataset.uuid = uuid;
+    sel.appendChild(opt);
+  }
+  if (current) sel.value = current;
 }
 
-function startAutoRefresh(seconds) {
-  stopAutoRefresh();
-  if (seconds === 0) return;
-  autoRefreshSeconds = seconds;
-  const label = document.querySelector("#auto-refresh-select option[value='" + seconds + "']");
-  const labelText = label ? label.textContent : `${seconds}s`;
-  log(`Auto-refresh enabled: ${labelText}`);
-  autoRefreshInterval = setInterval(() => {
-    if (activeSource === "overview") refreshDeviceInfo();
-    else refreshDevices();
-  }, seconds * 1000);
+function selectBucketInDropdown(bucket) {
+  const sel = document.getElementById("device-select");
+  if (sel) sel.value = bucket;
 }
 
-function stopAutoRefresh() {
-  if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
-  autoRefreshSeconds = 0;
+function onDeviceSelectChange(e) {
+  const bucket = e.target.value;
+  if (!bucket) return;
+  wsSend({ type: "select_bucket", bucket });
 }
 
-function renderSessions(sessions) {
-  const list = document.getElementById("sessions-list");
-  if (!sessions || sessions.length === 0) { list.innerHTML = '<div class="empty-state">No active sessions</div>'; return; }
-  list.innerHTML = sessions.map(s => `
-    <div class="session-card ${s.id === currentSessionId ? "active" : ""}" data-id="${s.id}">
-      <div class="session-card__id">${s.id}</div>
-      <div class="session-card__state">${s.process_state ?? s.current_state ?? "—"}</div>
-      <div class="session-card__label">${s.stage || s.text || ""}</div>
-    </div>
-  `).join("");
-  list.querySelectorAll(".session-card").forEach(card => {
-    card.addEventListener("click", () => {
-      currentSessionId = card.dataset.id;
-      renderSessions(sessions);
-      updateCommandButtonsFromSession();
+// ── Tab navigation ──────────────────────────────────────────────────────────
+
+function initTabs() {
+  document.querySelectorAll(".navbar__tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll(".navbar__tab").forEach(b => b.classList.toggle("active", b === btn));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `tab-${tab}`));
     });
   });
-  if (sessions.length === 1 && !currentSessionId) {
-    currentSessionId = sessions[0].id;
-    renderSessions(sessions);
-    updateCommandButtonsFromSession();
+}
+
+// ── Device info ─────────────────────────────────────────────────────────────
+
+function updateDeviceUI(device) {
+  if (!device) return;
+  const d = device._raw || device;
+  const ps = d.process_state ?? null;
+  const ua = d.user_action ?? null;
+  const stateInfo = stateLabel(ps);
+  const uaInfo = uaLabel(ua);
+  const phase = phaseOf(ps);
+  const isFail = FAILURE_STATES.includes(ps);
+
+  document.getElementById("info-uuid").textContent = d.uuid || d.serial_number || "—";
+  document.getElementById("info-custom-name").textContent = d.title || d.custom_name || "—";
+  document.getElementById("info-stage").textContent = d.stage || "—";
+  const psEl = document.getElementById("info-process-state");
+  if (psEl) { psEl.textContent = stateInfo.text; psEl.className = `device-field__value ${stateInfo.cls}`; }
+  const uaEl = document.getElementById("info-user-action");
+  if (uaEl) { uaEl.textContent = uaInfo.text; uaEl.className = `device-field__value ${uaInfo.cls}`; }
+  document.getElementById("info-current-temp").textContent = d.current_temp != null ? `${d.current_temp}°C` : "—";
+  document.getElementById("info-target-temp").textContent = d.target_temp != null ? `${d.target_temp}°C` : "—";
+  document.getElementById("info-gravity").textContent = d.gravity || "—";
+  document.getElementById("info-beer-name").textContent = d.beer_name || "—";
+  document.getElementById("info-active-session").textContent = d.session_id || d.active_session || "—";
+  document.getElementById("info-online").textContent = d.online != null ? boolLabel(d.online) : "—";
+  document.getElementById("info-software-version").textContent = d.software_version || "—";
+
+  const headerState = document.getElementById("process-state");
+  const headerPhase = document.getElementById("phase-label");
+  if (headerState) headerState.textContent = isFail ? `FAIL: ${stateInfo.text}` : stateInfo.text;
+  if (headerPhase) headerPhase.textContent = phase ? `[${phase}]` : "—";
+
+  const rawEl = document.getElementById("info-raw-json");
+  if (rawEl) rawEl.textContent = prettyJson(d);
+
+  const deviceSectionTitle = document.getElementById("device-section-title");
+  if (deviceSectionTitle) {
+    const name = d.title || d.custom_name || "Device Info";
+    deviceSectionTitle.textContent = name;
   }
 }
 
-function updateCommandButtonsFromSession() {
-  const session = sessionsData.find(s => s.id === currentSessionId);
-  if (!session) return;
-  const ua = session.user_action ?? 0;
+// ── Sessions ────────────────────────────────────────────────────────────────
+
+function renderSessions(sessions) {
+  const sel = document.getElementById("session-select");
+  if (!sel) return;
+  if (!sessions || sessions.length === 0) {
+    sel.innerHTML = '<option value="">— no sessions —</option>';
+    return;
+  }
+
+  // Sort by session ID descending (highest first)
+  const sorted = [...sessions].sort((a, b) => {
+    const aId = parseInt(sessionKey(a)) || 0;
+    const bId = parseInt(sessionKey(b)) || 0;
+    return bId - aId;
+  });
+
+  // Default to highest session ID
+  if (!currentSessionId) {
+    currentSessionId = String(sessionKey(sorted[0]));
+  }
+
+  const activeSid = activeSessionFromDevice ? String(activeSessionFromDevice) : null;
+
+  sel.innerHTML = sorted.map(s => {
+    const sid = String(sessionKey(s));
+    const isSelected = sid === String(currentSessionId);
+    const statusText = SESSION_STATUS_MAP[s.status] || `Status ${s.status ?? "—"}`;
+    const psInfo = stateLabel(s.process_state ?? s.current_state ?? null);
+    const beerName = s.beer?.name || s.beer_name || "—";
+    const label = `#${sid} [${statusText}] ${beerName !== "—" ? beerName : ""} ${psInfo.text} ${sid === activeSid ? "★" : ""}`.trim();
+    return `<option value="${sid}" ${isSelected ? "selected" : ""}>${label}</option>`;
+  }).join("");
+
+  sel.onchange = () => {
+    currentSessionId = sel.value;
+    if (currentSessionId) {
+      loadSessionDetail(currentSessionId);
+      updateCommandButtons();
+    }
+  };
+
+  if (currentSessionId) {
+    loadSessionDetail(currentSessionId);
+    updateCommandButtons();
+  }
+}
+
+async function loadSessionDetail(sessionId) {
+  const detailEmpty = document.getElementById("session-detail-empty");
+  const detailContent = document.getElementById("session-detail-content");
+  const fieldsEl = document.getElementById("session-detail-fields");
+
+  if (!sessionId) {
+    detailEmpty.style.display = "";
+    detailContent.style.display = "none";
+    return;
+  }
+
+  const session = sessionsData.find(s => String(sessionKey(s)) === String(sessionId));
+  if (!session) { logWarn(`Session ${sessionId} not found in cache`); return; }
+
+  selectedSessionDetail = session;
+  detailEmpty.style.display = "none";
+  detailContent.style.display = "";
+
+  const sid = sessionKey(session);
+  const psInfo = stateLabel(session.process_state ?? null);
+  const uaInfo = uaLabel(session.user_action ?? null);
+  const beerName = session.beer?.name || session.beer_name || "—";
+  const beerStyle = session.beer?.style_name || session.beer_style || "—";
+  const beerImg = session.beer?.image || null;
+
+  let html = `<div class="sdetail-row"><span class="sdetail-label">Session ID</span><span class="sdetail-value">${sid}</span></div>`;
+  html += `<div class="sdetail-row"><span class="sdetail-label">Status</span><span class="sdetail-value">${SESSION_STATUS_MAP[session.status] || session.status || "—"}</span></div>`;
+  html += `<div class="sdetail-row"><span class="sdetail-label">Process State</span><span class="sdetail-value ${psInfo.cls}">${psInfo.text}</span></div>`;
+  html += `<div class="sdetail-row"><span class="sdetail-label">User Action</span><span class="sdetail-value ${uaInfo.cls}">${uaInfo.text}</span></div>`;
+  html += `<div class="sdetail-row"><span class="sdetail-label">Beer</span><span class="sdetail-value">${beerName}</span></div>`;
+  html += `<div class="sdetail-row"><span class="sdetail-label">Style</span><span class="sdetail-value">${beerStyle}</span></div>`;
+  if (session.original_gravity != null) html += `<div class="sdetail-row"><span class="sdetail-label">Original Gravity</span><span class="sdetail-value">${session.original_gravity}</span></div>`;
+  if (session.device && Object.keys(session.device).length) {
+    const dv = session.device;
+    html += `<div class="sdetail-row"><span class="sdetail-label">Device</span><span class="sdetail-value">${dv.uuid || dv.serial_number || JSON.stringify(dv)}</span></div>`;
+  }
+  html += `<div class="sdetail-row"><span class="sdetail-label">Recipe ID</span><span class="sdetail-value">${session.beer_recipe_id || "—"}</span></div>`;
+  if (beerImg) html += `<div class="sdetail-row"><span class="sdetail-label">Beer Image</span><span class="sdetail-value"><img src="${beerImg}" class="beer-img" alt="${beerName}"></span></div>`;
+  fieldsEl.innerHTML = html;
+
+  // Enable/disable detail delete button
+  const detailDeleteBtn = document.getElementById("detail-delete-btn");
+  if (detailDeleteBtn) detailDeleteBtn.disabled = false;
+
+  // Load user action guidance if user_action is non-zero
+  const ua = session.user_action;
+  if (ua && ua !== 0) {
+    loadUserActionSteps(sid, ua);
+  } else {
+    document.getElementById("user-action-panel").style.display = "none";
+  }
+}
+
+async function loadUserActionSteps(sessionId, actionId) {
+  const panel = document.getElementById("user-action-panel");
+  const stepsEl = document.getElementById("user-action-steps");
+  panel.style.display = "";
+  stepsEl.innerHTML = '<div class="empty-state">Loading operator instructions…</div>';
+  try {
+    const resp = await fetch(`/sessions/${sessionId}/user-action/${actionId}`);
+    const data = await resp.json();
+    if (data.error) { stepsEl.innerHTML = `<div class="empty-state">${data.error}</div>`; return; }
+    let html = `<div class="ua-title">${data.title || "—"}</div>`;
+    html += `<div class="ua-desc">${data.description || ""}</div>`;
+    if (data.action_steps?.length) {
+      html += `<div class="ua-steps">`;
+      for (const step of data.action_steps) {
+        html += `<div class="ua-step">
+          <div class="ua-step__order">${step.order}</div>
+          <div class="ua-step__body">
+            <div class="ua-step__title">${step.title}</div>
+            <div class="ua-step__desc">${step.description || ""}</div>
+            ${step.image ? `<img src="${step.image}" class="ua-step__img" alt="${step.title}">` : ""}
+          </div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    stepsEl.innerHTML = html;
+  } catch (e) {
+    stepsEl.innerHTML = `<div class="empty-state">Failed to load: ${e.message}</div>`;
+  }
+}
+
+// ── Command buttons ─────────────────────────────────────────────────────────
+
+function updateCommandButtons() {
+  const session = sessionsData.find(s => String(sessionKey(s)) === String(currentSessionId));
+  const ua = session?.user_action ?? 0;
+
   const allowed = getAllowedCommands(ua);
   allowedCommands = allowed;
-  const CMD_MAP = {
-    "END_SESSION": { cmd: "END_SESSION", type: null },
-    "NEXT_STEP": { cmd: "NEXT_STEP", type: 3 },
-    "BYPASS_USER_ACTION": { cmd: "BYPASS_USER_ACTION", type: 3 },
-    "CHANGE_TEMPERATURE": { cmd: "CHANGE_TEMPERATURE", type: 6 },
-    "GO_TO_MASH": { cmd: "GO_TO_MASH", type: 3 },
-    "GO_TO_BOIL": { cmd: "GO_TO_BOIL", type: 3 },
-    "FINISH_BREW_SUCCESS": { cmd: "FINISH_BREW_SUCCESS", type: 3 },
-    "FINISH_BREW_FAILURE": { cmd: "FINISH_BREW_FAILURE", type: 3 },
-    "CLEAN_AFTER_BREW": { cmd: "CLEAN_AFTER_BREW", type: 3 },
-    "BYPASS_CLEAN": { cmd: "BYPASS_CLEAN", type: 3 },
-  };
-  document.querySelectorAll(".control-btn").forEach(btn => {
-    const info = CMD_MAP[btn.dataset.command];
+
+  const END_SESSION_BTN = document.getElementById("delete-session-btn");
+  document.querySelectorAll(".control-btn[data-command]").forEach(btn => {
+    const info = CMD_DEFINITIONS.find(c => c.cmd === btn.dataset.command);
     if (!info) { btn.disabled = true; return; }
     const { type } = info;
-    btn.disabled = !currentSessionId || (type !== null && !allowed.includes(type));
+    if (info.cmd === "END_SESSION") {
+      btn.disabled = !currentSessionId;
+    } else if (type === 6) {
+      btn.disabled = !currentSessionId || !allowed.includes(6);
+    } else {
+      btn.disabled = !currentSessionId || (type !== null && !allowed.includes(type));
+    }
   });
-  document.getElementById("temp-control").style.display = allowed.includes(6) ? "flex" : "none";
+
+  if (END_SESSION_BTN) END_SESSION_BTN.disabled = !currentSessionId;
+  const tempCtrl = document.getElementById("temp-control");
+  if (tempCtrl) tempCtrl.style.display = allowed.includes(6) ? "flex" : "none";
 }
 
 function getAllowedCommands(userAction) {
@@ -440,46 +545,254 @@ function getAllowedCommands(userAction) {
   return map[userAction] || [3];
 }
 
-let sessionsData = [];
+// ── Kegs ────────────────────────────────────────────────────────────────────
 
 function renderKegs(kegs) {
-  kegsData = kegs;
   const list = document.getElementById("keg-list");
-  const select = document.getElementById("keg-select");
-  if (select) {
-    select.innerHTML = '<option value="">— select keg —</option>' +
-      kegs.map(k => `<option value="${k.uuid || k.id}">${k.display_name || k.name || k.uuid || "Keg"}</option>`).join("");
-    if (currentKegUuid) select.value = currentKegUuid;
-  }
+  const sel = document.getElementById("keg-select");
+  if (!list) return;
+  kegsData = kegs || [];
   if (!kegs || kegs.length === 0) { list.innerHTML = '<div class="empty-state">No kegs registered</div>'; return; }
-  list.innerHTML = kegs.map(k => `
-    <div class="keg-card ${(k.uuid || k.id) === currentKegUuid ? "active" : ""}" data-uuid="${k.uuid || k.id}">
-      <div class="keg-card__header">
-        <span class="keg-card__name">${k.display_name || k.name || k.uuid || "—"}</span>
-        <span class="keg-card__temp">${k.temperature ? k.temperature + "°C" : "—"}</span>
-      </div>
-      <div class="keg-card__mode">${k.mode || "—"}</div>
-    </div>
-  `).join("");
+  list.innerHTML = kegs.map(k => {
+    const kid = k.uuid || k.id || "?";
+    const name = k.display_name || k.name || kid;
+    const temp = k.temperature || "—";
+    return `<div class="keg-card ${kid === currentKegUuid ? "active" : ""}" data-uuid="${kid}">
+      <div class="keg-card__name">${name}</div>
+      <div class="keg-card__temp">${temp}°C</div>
+    </div>`;
+  }).join("");
   list.querySelectorAll(".keg-card").forEach(card => {
     card.addEventListener("click", () => {
       currentKegUuid = card.dataset.uuid;
-      renderKegs(kegs);
+      renderKegs(kegsData);
+    });
+  });
+  if (sel) {
+    sel.innerHTML = '<option value="">— select —</option>' +
+      kegs.map(k => `<option value="${k.uuid || k.id}">${k.display_name || k.name || k.uuid || "Keg"}</option>`).join("");
+    if (currentKegUuid) sel.value = currentKegUuid;
+  }
+}
+
+// ── Recipes ─────────────────────────────────────────────────────────────────
+
+async function loadRecipes() {
+  log("Loading recipes from API…");
+  try {
+    const resp = await fetchWithAuth("/recipes");
+    const data = await resp.json();
+    if (data.error) { logError(data.error); return; }
+    recipesData = data.recipes || [];
+    renderRecipes(recipesData);
+    logSuccess(`Loaded ${recipesData.length} recipes`);
+  } catch (e) { logError(`Load recipes failed: ${e.message}`); }
+}
+
+function renderRecipes(recipes) {
+  const list = document.getElementById("recipes-list");
+  if (!list) return;
+  if (!recipes || recipes.length === 0) { list.innerHTML = '<div class="empty-state">No recipes found</div>'; return; }
+  list.innerHTML = recipes.map(r => {
+    const id = r.id || r.recipe_id || "?";
+    const name = r.name || r.title || `Recipe ${id}`;
+    const style = r.style_name || r.beer_style || "—";
+    return `<div class="recipe-card ${id === selectedRecipeId ? "active" : ""}" data-id="${id}">
+      <div class="recipe-card__name">${name}</div>
+      <div class="recipe-card__style">${style}</div>
+    </div>`;
+  }).join("");
+  list.querySelectorAll(".recipe-card").forEach(card => {
+    card.addEventListener("click", () => {
+      selectedRecipeId = card.dataset.id;
+      renderRecipes(recipesData);
+      loadRecipeDetail(selectedRecipeId);
     });
   });
 }
 
-function updateDeviceUI(device) {
-  updateUuidDisplay(device.uuid);
-  const raw = device._raw;
-  if (raw && raw.brew_clean_idle) renderBreweryOverview(raw);
-  else if (raw && raw.devices) renderDevices(raw);
+async function loadRecipeDetail(recipeId) {
+  const empty = document.getElementById("recipe-detail-empty");
+  const content = document.getElementById("recipe-detail-content");
+  if (!recipeId) { empty.style.display = ""; content.style.display = "none"; return; }
+  empty.style.display = "none";
+  content.style.display = "";
+  document.getElementById("recipe-detail-name").textContent = "Loading…";
+  try {
+    const resp = await fetch(`/recipes/${recipeId}`);
+    const data = await resp.json();
+    if (data.error) { logError(data.error); return; }
+    const recipe = data.recipe || {};
+    const steps = data.steps || [];
+    document.getElementById("recipe-detail-name").textContent = recipe.name || `Recipe ${recipeId}`;
+    document.getElementById("recipe-detail-style").textContent = recipe.style_name || recipe.beer_style || "—";
+    const stepsList = document.getElementById("recipe-steps-list");
+    if (steps.length) {
+      stepsList.innerHTML = steps.map(s => `<div class="recipe-step">
+        <span class="recipe-step__order">${s.order || s.step_order || ""}</span>
+        <span class="recipe-step__name">${s.name || s.step_name || "—"}</span>
+        <span class="recipe-step__temp">${s.temperature || s.temp || ""}°C</span>
+        <span class="recipe-step__time">${s.duration || s.time || ""}min</span>
+        <span class="recipe-step__desc">${s.description || ""}</span>
+      </div>`).join("");
+    } else {
+      stepsList.innerHTML = '<div class="empty-state">No step data available</div>';
+    }
+    const uuidInput = document.getElementById("recipe-session-uuid");
+    const startBtn = document.getElementById("start-brew-from-recipe-btn");
+    if (startBtn) {
+      startBtn.disabled = !uuidInput?.value;
+      startBtn.onclick = () => startBrewFromRecipe(recipeId);
+    }
+    if (uuidInput) {
+      uuidInput.addEventListener("input", () => {
+        if (startBtn) startBtn.disabled = !uuidInput.value;
+      });
+    }
+  } catch (e) { logError(`Load recipe detail failed: ${e.message}`); }
 }
+
+async function startBrewFromRecipe(recipeId) {
+  const uuid = document.getElementById("recipe-session-uuid")?.value?.trim();
+  if (!uuid) { logWarn("Device UUID required to start brew"); return; }
+  log(`Starting brew session with recipe ${recipeId} on ${uuid}`);
+  try {
+    const resp = await fetchWithAuth("/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_type: 0, minibrew_uuid: uuid, beer_recipe: recipeId }),
+    });
+    const result = await resp.json();
+    if (!resp.ok) { logError(`Create failed: ${result.error || resp.status}`); return; }
+    const sid = result.id || result.session_id;
+    logSuccess(`Brew session created: ${sid}`);
+    if (sid) { currentSessionId = String(sid); switchTab("sessions"); }
+    refreshSessions();
+  } catch (e) { logError(`Start brew failed: ${e.message}`); }
+}
+
+// ── Commands table ─────────────────────────────────────────────────────────
+
+function refreshCommandsTable() {
+  const tbody = document.querySelector("#commands-table tbody");
+  if (!tbody) return;
+  tbody.innerHTML = CMD_DEFINITIONS.map(c => {
+    const uaList = c.allowedUA === "*" ? "Any" : c.allowedUA.map(u => USER_ACTION_MAP[u] || u).join(", ") || "Any";
+    return `<tr>
+      <td class="cmd-name">${c.cmd}</td>
+      <td class="cmd-type">${c.type ?? "—"}</td>
+      <td class="cmd-ua">${uaList}</td>
+      <td class="cmd-desc">${c.desc}</td>
+    </tr>`;
+  }).join("");
+}
+
+function buildCodeTables() {
+  // user_action codes
+  const uaEl = document.getElementById("useraction-codes");
+  if (uaEl) {
+    uaEl.innerHTML = `<table class="codes-table"><thead><tr><th>ID</th><th>Label</th></tr></thead><tbody>${
+      Object.entries(USER_ACTION_MAP).map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")
+    }</tbody></table>`;
+  }
+  // process_state codes
+  const psEl = document.getElementById("processstate-codes");
+  if (psEl) {
+    psEl.innerHTML = `<table class="codes-table"><thead><tr><th>ID</th><th>State</th></tr></thead><tbody>${
+      Object.entries(PROCESS_STATE_MAP).map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")
+    }</tbody></table>`;
+  }
+}
+
+// ── Session creation form ───────────────────────────────────────────────────
+
+function showSessionForm(type) {
+  pendingSessionType = type;
+  const form = document.getElementById("session-form");
+  if (!form) return;
+  form.style.display = "flex";
+  const recipeRow = document.getElementById("session-recipe-row");
+  if (recipeRow) recipeRow.style.display = type === "brew" ? "flex" : "none";
+  const uuidInput = document.getElementById("session-uuid-input");
+  if (uuidInput) {
+    // Pre-fill with first device UUID
+    uuidInput.value = allDevices[0]?.uuid || allDevices[0]?.serial_number || "";
+  }
+}
+
+async function createSessionFn(sessionType, minibrewUuid, recipe) {
+  log(`Creating ${sessionType} session on ${minibrewUuid}`);
+  try {
+    const typeMap = { brew: 0, clean: "clean_minibrew", acid_clean: "acid_clean_minibrew" };
+    const resp = await fetchWithAuth("/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_type: typeMap[sessionType], minibrew_uuid: minibrewUuid, beer_recipe: recipe }),
+    });
+    const result = await resp.json();
+    if (!resp.ok) { logError(`Create failed: ${result.error || resp.status}`); return; }
+    const sid = result.id || result.session_id;
+    logSuccess(`Session created: ${sid}`);
+    if (sid) { currentSessionId = String(sid); switchTab("sessions"); }
+    document.getElementById("session-form").style.display = "none";
+    refreshSessions();
+  } catch (e) { logError(`Create session error: ${e.message}`); }
+}
+
+async function refreshSessions() {
+  try {
+    const resp = await fetchWithAuth("/sessions");
+    if (!resp || !resp.ok) return;
+    const data = await resp.json();
+    sessionsData = data.sessions || [];
+    renderSessions(sessionsData);
+  } catch (e) { logError(`Refresh sessions error: ${e.message}`); }
+}
+
+// ── Device info refresh ────────────────────────────────────────────────────
+
+async function refreshDeviceInfo() {
+  log("Fetching breweryoverview…");
+  try {
+    const resp = await fetchWithAuth("/verify");
+    if (!resp || !resp.ok) { logError(`Verify failed: ${resp?.status}`); return; }
+    const data = await resp.json();
+    if (data.status === "error") { logError(data.error); return; }
+    logSuccess("breweryoverview OK");
+    const overview = data.data;
+    const selBucket = selectedBucket || document.getElementById("device-select")?.value;
+    const bucket = selBucket && overview[selBucket] ? selBucket : Object.keys(overview).find(k => overview[k]?.length);
+    if (bucket) {
+      const dev = (overview[bucket] || [])[0];
+      if (dev) updateDeviceUI({ ...dev, _raw: dev });
+    }
+    const rawEl = document.getElementById("info-raw-json");
+    if (rawEl) rawEl.textContent = prettyJson(overview);
+  } catch (e) { logError(`Verify failed: ${e.message}`); }
+}
+
+// ── Auto-refresh ────────────────────────────────────────────────────────────
+
+function startAutoRefresh(seconds) {
+  stopAutoRefresh();
+  if (seconds === 0) return;
+  autoRefreshSeconds = seconds;
+  log(`Auto-refresh: ${seconds}s`);
+  autoRefreshInterval = setInterval(() => {
+    if (activeSource === "overview") refreshDeviceInfo();
+  }, seconds * 1000);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+}
+
+// ── API calls ───────────────────────────────────────────────────────────────
 
 async function sendCommand(command, params) {
   if (!currentSessionId) { logWarn("No session selected"); return; }
   try {
-    log(`Sending session command: ${command} ${params ? JSON.stringify(params) : ""}`);
+    log(`Sending: ${command} ${params ? JSON.stringify(params) : ""}`);
     const resp = await fetch(`/session/${currentSessionId}/command`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -487,13 +800,13 @@ async function sendCommand(command, params) {
     });
     const result = await resp.json();
     if (!resp.ok) logError(`Command failed: ${result.error || resp.status}`);
-    else logSuccess(`Command ${command} sent OK`);
+    else logSuccess(`Command ${command} sent`);
   } catch (e) { logError(`Command error: ${e.message}`); }
 }
 
 async function sendKegCommand(kegUuid, command, params) {
   try {
-    log(`Sending keg command: ${command} ${params ? JSON.stringify(params) : ""}`);
+    log(`Keg ${kegUuid}: ${command}`);
     const resp = await fetch(`/keg/${kegUuid}/command`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -501,170 +814,27 @@ async function sendKegCommand(kegUuid, command, params) {
     });
     const result = await resp.json();
     if (!resp.ok) logError(`Keg command failed: ${result.error || resp.status}`);
-    else logSuccess(`Keg command ${command} sent OK`);
+    else logSuccess(`Keg command ${command} sent`);
   } catch (e) { logError(`Keg command error: ${e.message}`); }
 }
 
-async function createSession(sessionType, minibrewUuid, recipe) {
-  log(`Creating session: ${sessionType} for ${minibrewUuid}`);
-  try {
-    const resp = await fetch("/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_type: sessionType, minibrew_uuid: minibrewUuid, beer_recipe: recipe }),
-    });
-    const result = await resp.json();
-    if (!resp.ok) { logError(`Create session failed: ${result.error || resp.status}`); return; }
-    logSuccess(`Session created: ${result.id || result.session_id || JSON.stringify(result)}`);
-    const id = result.id || result.session_id;
-    if (id) { currentSessionId = String(id); refreshSessions(); }
-  } catch (e) { logError(`Create session error: ${e.message}`); }
+function switchTab(name) {
+  document.querySelectorAll(".navbar__tab").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === name);
+  });
+  document.querySelectorAll(".tab-panel").forEach(p => {
+    p.classList.toggle("active", p.id === `tab-${name}`);
+  });
 }
 
-async function refreshSessions() {
-  try {
-    const resp = await fetch("/sessions");
-    if (!resp.ok) return;
-    const data = await resp.json();
-    sessionsData = data.sessions || [];
-    renderSessions(sessionsData);
-    if (currentSessionId) updateCommandButtonsFromSession();
-  } catch (e) { logError(`Refresh sessions error: ${e.message}`); }
-}
-
-const CMD_MAP = {
-  "END_SESSION": "END_SESSION", "NEXT_STEP": "NEXT_STEP", "BYPASS_USER_ACTION": "BYPASS_USER_ACTION",
-  "CHANGE_TEMPERATURE": "CHANGE_TEMPERATURE", "GO_TO_MASH": "GO_TO_MASH", "GO_TO_BOIL": "GO_TO_BOIL",
-  "FINISH_BREW_SUCCESS": "FINISH_BREW_SUCCESS", "FINISH_BREW_FAILURE": "FINISH_BREW_FAILURE",
-  "CLEAN_AFTER_BREW": "CLEAN_AFTER_BREW", "BYPASS_CLEAN": "BYPASS_CLEAN",
-};
-
-document.querySelectorAll(".control-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const cmd = CMD_MAP[btn.dataset.command];
-    if (cmd === "END_SESSION") {
-      if (!currentSessionId) return;
-      log(`Deleting session ${currentSessionId}`);
-      fetch(`/sessions/${currentSessionId}`, { method: "DELETE" })
-        .then(r => { if (r.ok) { currentSessionId = null; refreshSessions(); logSuccess("Session deleted"); } else logError("Delete failed"); })
-        .catch(e => logError(`Delete error: ${e.message}`));
-      return;
-    }
-    if (cmd) sendCommand(cmd);
-  });
-});
-
-document.getElementById("temp-apply-btn")?.addEventListener("click", () => {
-  const temp = parseFloat(document.getElementById("temp-input")?.value);
-  if (!isNaN(temp)) sendCommand("CHANGE_TEMPERATURE", { serving_temperature: temp });
-});
-
-document.getElementById("keg-select")?.addEventListener("change", (e) => {
-  currentKegUuid = e.target.value || null;
-  if (currentKegUuid) renderKegs(kegsData);
-});
-
-document.getElementById("set-beer-name-btn")?.addEventListener("click", async () => {
-  const name = document.getElementById("beer-name-input")?.value?.trim();
-  if (!currentKegUuid || !name) return;
-  log(`Setting beer name: "${name}"`);
-  try {
-    const resp = await fetch(`/keg/${currentKegUuid}/display-name`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ display_name: name }),
-    });
-    const result = await resp.json();
-    if (!resp.ok) logError(`Set name failed: ${result.error || resp.status}`);
-    else logSuccess(`Beer name set to "${name}"`);
-  } catch (e) { logError(`Set name error: ${e.message}`); }
-});
-
-document.getElementById("set-keg-temp-btn")?.addEventListener("click", () => {
-  if (!currentKegUuid) { logWarn("No keg selected"); return; }
-  const temp = parseFloat(document.getElementById("keg-temp-input")?.value);
-  if (isNaN(temp)) return;
-  log(`Setting keg temperature: ${temp}°C`);
-  sendKegCommand(currentKegUuid, "SET_KEG_TEMPERATURE", { temperature: temp });
-});
-
-document.querySelectorAll(".keg-action-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    if (!currentKegUuid) { logWarn("No keg selected"); return; }
-    sendKegCommand(currentKegUuid, btn.dataset.action);
-  });
-});
-
-document.getElementById("create-brew-btn")?.addEventListener("click", () => {
-  pendingSessionType = "brew";
-  document.getElementById("session-form").style.display = "flex";
-  document.getElementById("session-recipe-input").parentElement.style.display = "flex";
-});
-
-document.getElementById("create-clean-btn")?.addEventListener("click", () => {
-  pendingSessionType = "clean";
-  document.getElementById("session-form").style.display = "flex";
-  document.getElementById("session-recipe-input").parentElement.style.display = "none";
-});
-
-document.getElementById("create-acid-btn")?.addEventListener("click", () => {
-  pendingSessionType = "acid_clean";
-  document.getElementById("session-form").style.display = "flex";
-  document.getElementById("session-recipe-input").parentElement.style.display = "none";
-});
-
-document.getElementById("session-form-cancel-btn")?.addEventListener("click", () => {
-  document.getElementById("session-form").style.display = "none";
-  pendingSessionType = null;
-});
-
-document.getElementById("session-form-create-btn")?.addEventListener("click", () => {
-  const uuid = document.getElementById("session-uuid-input")?.value?.trim();
-  if (!uuid) { logWarn("MiniBrew UUID is required"); return; }
-  let recipe = null;
-  if (pendingSessionType === "brew") {
-    const raw = document.getElementById("session-recipe-input")?.value?.trim();
-    if (raw) { try { recipe = JSON.parse(raw); } catch { logWarn("Invalid recipe JSON — ignoring"); } }
-  }
-  const typeMap = { brew: 0, clean: "clean_minibrew", acid_clean: "acid_clean_minibrew" };
-  createSession(typeMap[pendingSessionType], uuid, recipe);
-  document.getElementById("session-form").style.display = "none";
-  pendingSessionType = null;
-});
-
-document.getElementById("refresh-device-btn")?.addEventListener("click", () => { setActiveSource("overview"); refreshDeviceInfo(); });
-document.getElementById("refresh-devices-btn")?.addEventListener("click", () => { setActiveSource("devices"); refreshDevices(); });
-
-document.getElementById("auto-refresh-select")?.addEventListener("change", (e) => {
-  const val = parseInt(e.target.value);
-  if (val === 0) {
-    stopAutoRefresh();
-    log("Auto-refresh disabled");
-  } else {
-    startAutoRefresh(val);
-  }
-});
-
-document.getElementById("clear-log-btn")?.addEventListener("click", () => {
-  const el = document.getElementById("log-output");
-  if (el) el.innerHTML = "";
-  log("Log cleared");
-});
-
-document.getElementById("suppress-ws-logs")?.addEventListener("change", (e) => {
-  suppressWsLogs = e.target.checked;
-  log(`WebSocket logs ${suppressWsLogs ? "suppressed" : "shown"}`);
-});
-
-// Set default active source
-document.getElementById("refresh-device-btn")?.classList.add("active");
+// ── Token gate ──────────────────────────────────────────────────────────────
 
 let tokenGatePassed = false;
 
 async function checkTokenAndGate() {
   try {
-    const resp = await fetch("/settings/token");
-    if (!resp.ok) throw new Error("Failed to fetch token status");
+    const resp = await fetchWithAuth("/settings/token");
+    if (!resp || !resp.ok) throw new Error();
     const data = await resp.json();
     if (data.token_set) {
       tokenGatePassed = true;
@@ -673,15 +843,77 @@ async function checkTokenAndGate() {
     } else {
       document.getElementById("token-gate").style.display = "flex";
     }
-  } catch (e) {
+  } catch {
     document.getElementById("token-gate").style.display = "flex";
   }
 }
 
+// ── Auth init ───────────────────────────────────────────────────────────────
+
+async function initAuth() {
+  const token = getJwtToken();
+  if (!token) { showAuthGate(); return; }
+  try {
+    const resp = await fetchWithAuth("/auth/me");
+    if (!resp) { showAuthGate(); return; }
+    if (resp.ok) {
+      const user = await resp.json();
+      showDashboard(user);
+    } else {
+      showAuthGate();
+    }
+  } catch {
+    showAuthGate();
+  }
+}
+
+async function doLogin(username, password) {
+  const resp = await fetch("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return { error: data.detail || "Login failed" };
+  setJwtToken(data.access_token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+  return { user: data.user };
+}
+
+async function doRegister(username, password, confirmPassword) {
+  if (password !== confirmPassword) return { error: "Passwords do not match" };
+  const resp = await fetch("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return { error: data.detail || "Registration failed" };
+  setJwtToken(data.access_token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+  return { user: data.user };
+}
+
+function doLogout() {
+  clearJwtToken();
+  showAuthGate();
+}
+
+// ── Settings modal ──────────────────────────────────────────────────────────
+
+function openSettingsModal() {
+  document.getElementById("settings-modal").style.display = "flex";
+  document.getElementById("settings-token-input").value = "";
+  loadTokenStatus();
+}
+function closeSettingsModal() {
+  document.getElementById("settings-modal").style.display = "none";
+}
+
 async function loadTokenStatus() {
   try {
-    const resp = await fetch("/settings/token");
-    if (resp.ok) {
+    const resp = await fetchWithAuth("/settings/token");
+    if (resp && resp.ok) {
       const data = await resp.json();
       updateTokenStatusUI(data.token_set, data.source);
     }
@@ -694,121 +926,254 @@ function updateTokenStatusUI(isSet, source) {
   if (!el) return;
   if (isSet) {
     el.innerHTML = '<span class="token-indicator token-indicator--set">Token active</span>';
-    if (srcEl) {
-      srcEl.textContent = source === "env"
-        ? "Source: .env file (default)"
-        : source === "stored"
-        ? "Source: encrypted storage"
-        : "";
-    }
+    if (srcEl) srcEl.textContent = source === "env" ? "Source: .env file" : source === "stored" ? "Source: encrypted storage" : "";
   } else {
     el.innerHTML = '<span class="token-indicator token-indicator--unset">Not set</span>';
-    if (srcEl) srcEl.textContent = "No token configured — enter one below to continue";
+    if (srcEl) srcEl.textContent = "No token — enter one below";
   }
 }
 
-function openSettingsModal() {
-  document.getElementById("settings-modal").style.display = "flex";
-  document.getElementById("settings-token-input").value = "";
-  loadTokenStatus();
-}
+// ── Event bindings ──────────────────────────────────────────────────────────
 
-function closeSettingsModal() {
-  document.getElementById("settings-modal").style.display = "none";
-}
+function bindEvents() {
 
-document.getElementById("settings-btn")?.addEventListener("click", openSettingsModal);
-document.getElementById("settings-close-btn")?.addEventListener("click", closeSettingsModal);
-document.getElementById("settings-overlay")?.addEventListener("click", closeSettingsModal);
-
-document.getElementById("settings-save-btn")?.addEventListener("click", async () => {
-  const token = document.getElementById("settings-token-input")?.value?.trim();
-  if (!token) { logWarn("Token cannot be empty"); return; }
-  const btn = document.getElementById("settings-save-btn");
-  btn.disabled = true;
-  btn.textContent = "Saving…";
-  try {
-    const resp = await fetch("/settings/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll(".auth-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll(".auth-tab").forEach(b => b.classList.toggle("active", b === btn));
+      document.getElementById("auth-login-form").style.display = tab === "login" ? "" : "none";
+      document.getElementById("auth-register-form").style.display = tab === "register" ? "" : "none";
+      document.getElementById("auth-error").style.display = "none";
     });
-    const result = await resp.json();
-    if (!resp.ok) { logError(`Save failed: ${result.error || resp.status}`); }
-    else {
-      logSuccess("Token saved and applied — reconnecting…");
-      updateTokenStatusUI(true, "stored");
-      closeSettingsModal();
-      setTimeout(() => {
-        if (ws) ws.close();
-        connect();
-      }, 500);
-    }
-  } catch (e) { logError(`Save error: ${e.message}`); }
-  finally { btn.disabled = false; btn.textContent = "Save & Apply"; }
-});
+  });
 
-document.getElementById("settings-reset-btn")?.addEventListener("click", async () => {
-  try {
-    const resp = await fetch("/settings/token", { method: "DELETE" });
-    if (resp.ok) {
-      const data = await resp.json();
+  document.getElementById("login-submit-btn")?.addEventListener("click", async () => {
+    const u = document.getElementById("login-username")?.value?.trim();
+    const p = document.getElementById("login-password")?.value;
+    const err = document.getElementById("auth-error");
+    if (!u || !p) { err.textContent = "Username and password required"; err.style.display = ""; return; }
+    const result = await doLogin(u, p);
+    if (result.error) { err.textContent = result.error; err.style.display = ""; }
+    else { showDashboard(result.user); }
+  });
+
+  document.getElementById("register-submit-btn")?.addEventListener("click", async () => {
+    const u = document.getElementById("register-username")?.value?.trim();
+    const p = document.getElementById("register-password")?.value;
+    const c = document.getElementById("register-confirm")?.value;
+    const err = document.getElementById("auth-error");
+    if (!u || !p) { err.textContent = "Username and password required"; err.style.display = ""; return; }
+    const result = await doRegister(u, p, c);
+    if (result.error) { err.textContent = result.error; err.style.display = ""; }
+    else { showDashboard(result.user); }
+  });
+
+  document.getElementById("navbar-logout-btn")?.addEventListener("click", doLogout);
+  document.getElementById("logout-btn")?.addEventListener("click", doLogout);
+
+  document.getElementById("login-password")?.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login-submit-btn")?.click(); });
+  document.getElementById("register-password")?.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("register-submit-btn")?.click(); });
+
+  // Device dropdown
+  document.getElementById("device-select")?.addEventListener("change", onDeviceSelectChange);
+
+  // Tab nav
+  initTabs();
+
+  // Refresh button
+  document.getElementById("refresh-device-btn")?.addEventListener("click", () => { activeSource = "overview"; refreshDeviceInfo(); });
+
+  // Auto-refresh select
+  document.getElementById("auto-refresh-select")?.addEventListener("change", (e) => {
+    const val = parseInt(e.target.value);
+    if (val === 0) stopAutoRefresh(); else startAutoRefresh(val);
+  });
+  startAutoRefresh(autoRefreshSeconds);
+
+  // Command buttons
+  document.querySelectorAll(".control-btn[data-command]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const cmd = btn.dataset.command;
+      if (cmd === "END_SESSION") {
+        if (!currentSessionId) return;
+        fetch(`/sessions/${currentSessionId}/wake-then-delete`, { method: "POST" })
+          .then(r => { if (r.ok) { currentSessionId = null; refreshSessions(); logSuccess("Session deleted"); } else logError("Delete failed"); } )
+          .catch(e => logError(e.message));
+        return;
+      }
+      if (cmd === "CHANGE_TEMPERATURE") {
+        const temp = parseFloat(document.getElementById("temp-input")?.value);
+        sendCommand(cmd, { serving_temperature: temp });
+        return;
+      }
+      sendCommand(cmd);
+    });
+  });
+
+  // Temp apply
+  document.getElementById("temp-apply-btn")?.addEventListener("click", () => {
+    const temp = parseFloat(document.getElementById("temp-input")?.value);
+    if (!isNaN(temp)) sendCommand("CHANGE_TEMPERATURE", { serving_temperature: temp });
+  });
+
+  // Delete session (status section)
+  document.getElementById("delete-session-btn")?.addEventListener("click", () => {
+    if (!currentSessionId) return;
+    fetch(`/sessions/${currentSessionId}/wake-then-delete`, { method: "POST" })
+      .then(r => { if (r.ok) { currentSessionId = null; refreshSessions(); logSuccess("Session deleted"); } else logError("Delete failed"); } )
+      .catch(e => logError(e.message));
+  });
+
+  // Session detail delete
+  document.getElementById("detail-delete-btn")?.addEventListener("click", () => {
+    if (!currentSessionId) return;
+    fetch(`/sessions/${currentSessionId}/wake-then-delete`, { method: "POST" })
+      .then(r => { if (r.ok) { currentSessionId = null; selectedSessionDetail = null; refreshSessions();
+        document.getElementById("session-detail-empty").style.display = "";
+        document.getElementById("session-detail-content").style.display = "none";
+        logSuccess("Session deleted"); } else logError("Delete failed"); } )
+      .catch(e => logError(e.message));
+  });
+
+  // Create session buttons
+  document.getElementById("create-brew-btn")?.addEventListener("click", () => showSessionForm("brew"));
+  document.getElementById("create-clean-btn")?.addEventListener("click", () => showSessionForm("clean"));
+  document.getElementById("create-acid-btn")?.addEventListener("click", () => showSessionForm("acid_clean"));
+  document.getElementById("session-form-cancel-btn")?.addEventListener("click", () => {
+    document.getElementById("session-form").style.display = "none";
+    pendingSessionType = null;
+  });
+  document.getElementById("session-form-create-btn")?.addEventListener("click", () => {
+    const uuid = document.getElementById("session-uuid-input")?.value?.trim();
+    if (!uuid) { logWarn("Device UUID required"); return; }
+    let recipe = null;
+    if (pendingSessionType === "brew") {
+      const raw = document.getElementById("session-recipe-input")?.value?.trim();
+      if (raw) { const parsed = parseInt(raw); if (!isNaN(parsed)) recipe = parsed; }
+    }
+    createSessionFn(pendingSessionType, uuid, recipe);
+  });
+
+  // Load recipes
+  document.getElementById("load-recipes-btn")?.addEventListener("click", loadRecipes);
+
+  // Keg select
+  document.getElementById("keg-select")?.addEventListener("change", (e) => {
+    currentKegUuid = e.target.value || null;
+    const tempBtn = document.querySelector(".keg-action-btn[data-action='SET_KEG_TEMPERATURE']");
+    const tempRow = document.getElementById("keg-temp-row");
+    if (tempBtn) tempBtn.disabled = !currentKegUuid;
+    if (tempRow) tempRow.style.display = currentKegUuid ? "flex" : "none";
+    renderKegs(kegsData);
+  });
+
+  // Keg name
+  document.getElementById("set-beer-name-btn")?.addEventListener("click", async () => {
+    const name = document.getElementById("beer-name-input")?.value?.trim();
+    if (!currentKegUuid || !name) return;
+    try {
+      const resp = await fetch(`/keg/${currentKegUuid}/display-name`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: name }),
+      });
+      const r = await resp.json();
+      if (!resp.ok) logError(`Failed: ${r.error || resp.status}`); else logSuccess(`Beer name set to "${name}"`);
+    } catch (e) { logError(e.message); }
+  });
+
+  // Keg action buttons
+  document.querySelectorAll(".keg-action-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!currentKegUuid) { logWarn("Select a keg first"); return; }
+      const action = btn.dataset.action;
+      if (action === "SET_KEG_TEMPERATURE") {
+        const temp = parseFloat(document.getElementById("keg-temp-input")?.value);
+        if (isNaN(temp)) return;
+        sendKegCommand(currentKegUuid, action, { temperature: temp });
+      } else {
+        sendKegCommand(currentKegUuid, action);
+      }
+    });
+  });
+
+  // Settings modal
+  document.getElementById("settings-btn")?.addEventListener("click", openSettingsModal);
+  document.getElementById("settings-close-btn")?.addEventListener("click", closeSettingsModal);
+  document.getElementById("settings-overlay")?.addEventListener("click", closeSettingsModal);
+  document.getElementById("settings-save-btn")?.addEventListener("click", async () => {
+    const token = document.getElementById("settings-token-input")?.value?.trim();
+    if (!token) { logWarn("Token cannot be empty"); return; }
+    const btn = document.getElementById("settings-save-btn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const resp = await fetchWithAuth("/settings/token", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) logError(`Save failed: ${result.error || resp.status}`);
+      else {
+        logSuccess("Token saved — reconnecting…");
+        updateTokenStatusUI(true, "stored");
+        closeSettingsModal();
+        setTimeout(() => { if (ws) ws.close(); connect(); }, 500);
+      }
+    } catch (e) { logError(e.message); }
+    finally { btn.disabled = false; btn.textContent = "Save & Apply"; }
+  });
+  document.getElementById("settings-reset-btn")?.addEventListener("click", async () => {
+    try {
+      await fetchWithAuth("/settings/token", { method: "DELETE" });
       logSuccess("Token reset — reconnecting…");
       updateTokenStatusUI(false, null);
       closeSettingsModal();
-      setTimeout(() => {
-        if (ws) ws.close();
-        connect();
-      }, 500);
-    } else { logError("Reset failed"); }
-  } catch (e) { logError(`Reset error: ${e.message}`); }
-});
+      setTimeout(() => { if (ws) ws.close(); connect(); }, 500);
+    } catch { logError("Reset failed"); }
+  });
 
-document.getElementById("settings-token-input")?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("settings-save-btn")?.click();
-  if (e.key === "Escape") closeSettingsModal();
-});
-
-document.getElementById("gate-submit-btn")?.addEventListener("click", async () => {
-  const token = document.getElementById("gate-token-input")?.value?.trim();
-  if (!token) {
-    const err = document.getElementById("gate-error");
-    err.textContent = "Token cannot be empty";
-    err.style.display = "block";
-    return;
-  }
-  const btn = document.getElementById("gate-submit-btn");
-  const err = document.getElementById("gate-error");
-  err.style.display = "none";
-  btn.disabled = true;
-  btn.textContent = "Connecting…";
-  try {
-    const resp = await fetch("/settings/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    if (!resp.ok) {
-      const result = await resp.json();
-      err.textContent = result.error || "Failed to save token";
-      err.style.display = "block";
-    } else {
-      err.style.display = "none";
-      tokenGatePassed = true;
-      document.getElementById("token-gate").style.display = "none";
-      connect();
+  // Token gate
+  document.getElementById("gate-submit-btn")?.addEventListener("click", async () => {
+    const token = document.getElementById("gate-token-input")?.value?.trim();
+    if (!token) {
+      const err = document.getElementById("gate-error");
+      err.textContent = "Token cannot be empty"; err.style.display = "block"; return;
     }
-  } catch (e) {
-    err.textContent = `Error: ${e.message}`;
-    err.style.display = "block";
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Connect";
-  }
-});
+    const err = document.getElementById("gate-error");
+    err.style.display = "none";
+    try {
+      const resp = await fetchWithAuth("/settings/token", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!resp || !resp.ok) {
+        const result = await resp?.json();
+        err.textContent = result?.error || "Failed"; err.style.display = "block";
+      } else {
+        err.style.display = "none";
+        tokenGatePassed = true;
+        document.getElementById("token-gate").style.display = "none";
+        connect();
+      }
+    } catch (e) { err.textContent = `Error: ${e.message}`; err.style.display = "block"; }
+  });
+  document.getElementById("gate-token-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("gate-submit-btn")?.click();
+  });
 
-document.getElementById("gate-token-input")?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("gate-submit-btn")?.click();
-});
+  // Console
+  document.getElementById("suppress-ws-logs")?.addEventListener("change", (e) => {
+    suppressWsLogs = e.target.checked;
+  });
+  document.getElementById("clear-log-btn")?.addEventListener("click", () => {
+    const el = document.getElementById("log-output");
+    if (el) el.innerHTML = "";
+  });
+}
 
-checkTokenAndGate();
+// ── Boot ────────────────────────────────────────────────────────────────────
+
+let pendingSessionType = null;
+
+bindEvents();
+initAuth();

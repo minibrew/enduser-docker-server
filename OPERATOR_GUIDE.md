@@ -27,39 +27,33 @@ Fix:
 
 ## Known Bugs & Quirks
 
-### 1. FERMENTATION_FAILED is not in the IntEnum
-`state_engine.py` line 200 references `ProcessState.FERMENTATION_FAILED` which doesn't exist in the `ProcessState` enum (only `FERMENTING = 80` is there). This causes a startup crash when a WebSocket connects and `build_state_intelligence()` is called.
-
-**Fix applied:** use raw integer `84` instead:
-```python
-# state_engine.py line 200 — was:
-ProcessState.FERMENTATION_FAILED,
-# now:
-84,   # FERMENTATION_FAILED (not in the IntEnum)
-```
-
-### 2. Sessions List Can Show Dangling/Completed Sessions
-The polling worker fetches **all** sessions from `GET /v1/sessions/` — this includes sessions that are finished (status 4 = done), failed (status 6), or pending cleaning. There is no active-session filter.
-
-The dashboard shows every session as a card. If you have dozens of old sessions they all appear.
+### 1. Sessions List Shows All Sessions
+The polling worker fetches **all** sessions from `GET /v1/sessions/` — this includes sessions that are finished (status 4 = done), failed (status 6), or pending cleaning. The sessions dropdown shows all of them sorted by ID (highest first). There is currently no active-only filter.
 
 **Status values observed:**
 | Status | Meaning |
 |--------|---------|
-| 2 | Active / in-progress |
+| 1 | Active |
+| 2 | In-progress |
 | 4 | Completed / done |
 | 6 | Failed / cancelled |
 
-### 3. Delete Session Requires Wake First
+### 2. Delete Session Requires Wake First
 Some sessions (device in "Needs cleaning" state, user_action=12) reject a DELETE immediately — the device must be woken first. The **Delete Session** button does this automatically: wake (type 2) → 1 second wait → DELETE.
 
-### 4. `process_type` Map
+### 3. `process_type` Map
 ```
 0 = Brewing
 1 = Fermentation
 2 = Cleaning
 ```
 Note: some sessions in the API show `process_type: 5` which is not mapped — these are climate/keg-type devices.
+
+### 4. `breweryoverview` — The Primary Device Source
+The `breweryoverview` endpoint (no `/v1/` prefix) returns the **4-bucket view** and is the primary source for device state. `GET /v1/devices/` is supplementary — it may not reflect real-time state as it is only polled alongside sessions. Do not rely on `v1/devices` for live device state.
+
+### 5. Active Session Detection
+`active_session` on a device in `breweryoverview` is the device's **currently active session ID**. A session is considered "active on device" when `String(session.id) === String(device.active_session)`. The active session is marked with ★ in the sessions dropdown.
 
 ---
 
@@ -71,20 +65,21 @@ backend/
 ├── minibrew_client.py    # httpx wrapper — ALL calls to api.minibrew.io go here
 ├── session_service.py    # Brew/clean/acid-create, send_command, delete_session
 ├── command_service.py    # Command routing + user_action guard validation
-├── device_service.py    # breweryoverview fetch + enrichment
-├── keg_service.py       # Keg commands + display name updates
-├── state_engine.py      # ProcessState IntEnum, labels, phase mapping, ALLOWED_COMMANDS
-├── state_store.py       # In-memory singleton (sessions/kegs/device)
-├── websocket_manager.py # WebSocket connections registry + broadcast
+├── device_service.py     # breweryoverview fetch + enrichment; per-bucket storage
+├── keg_service.py        # Keg commands + display name updates
+├── recipe_service.py     # Recipe list/detail/steps, beer styles, beer list
+├── state_engine.py       # ProcessState IntEnum, labels, phase mapping, ALLOWED_COMMANDS
+├── state_store.py        # In-memory singleton; per-bucket device state; sessions/kegs cache
+├── websocket_manager.py  # WebSocket connections registry + broadcast
 ├── event_bus.py          # Async pub/sub for internal events
-├── polling_worker.py    # Background 2s poll loop → event bus
-└── settings_store.py    # Fernet-encrypted token storage
+├── polling_worker.py     # Background 2s poll loop — fetches all 4 breweryoverview buckets
+└── settings_store.py     # Fernet-encrypted token storage
 
 frontend/
-├── index.html           # Dashboard HTML + token gate overlay
-├── app.js               # WebSocket client, render functions, all UI logic
-├── style.css            # Dark theme styles
-└── nginx.conf           # Proxies /ws, /sessions, /keg, /settings, /verify, /device
+├── index.html            # Dashboard HTML — navbar with 4 tabs, token gate overlay
+├── app.js                # WebSocket client, render functions, tab nav, device/session dropdowns
+├── style.css             # Dark theme styles — navbar, tabs, session dropdown, tables
+└── nginx.conf            # Proxies /ws, /sessions, /recipes, /beers, /keg, /settings, /verify, /device
 ```
 
 ---

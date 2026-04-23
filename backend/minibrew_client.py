@@ -123,29 +123,29 @@ class MiniBrewClient:
 
     async def get_sessions(self) -> list[dict[str, Any]]:
         """List all active and recent sessions."""
-        return await self._get("/v1/sessions/")
+        return await self._get("/sessions/")
 
     async def get_session(self, session_id: str) -> dict[str, Any]:
         """Fetch a single session by its UUID string."""
-        return await self._get(f"/v1/sessions/{session_id}/")
+        return await self._get(f"/sessions/{session_id}/")
 
     async def create_session(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Create a new session (brew, clean_minibrew, or acid_clean_minibrew).
         Body must include minibrew_uuid and session_type.
         """
-        return await self._post("/v1/sessions/", json=data)
+        return await self._post("/sessions/", json=data)
 
     async def update_session(self, session_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """PUT to an existing session – used for generic_command / update_recipe."""
-        return await self._put(f"/v1/sessions/{session_id}/", json=data)
+        return await self._put(f"/sessions/{session_id}/", json=data)
 
     async def delete_session(self, session_id: str) -> dict[str, Any]:
         """
         DELETE a session. This is the END_SESSION operation – terminates
         the session on the MiniBrew device.
         """
-        return await self._delete(f"/v1/sessions/{session_id}/")
+        return await self._delete(f"/sessions/{session_id}/")
 
     async def send_session_command(
         self,
@@ -166,14 +166,14 @@ class MiniBrewClient:
         payload: dict[str, Any] = {"command_type": command_type}
         if params:
             payload.update(params)
-        return await self._put(f"/v1/sessions/{session_id}/", json=payload)
+        return await self._put(f"/sessions/{session_id}/", json=payload)
 
     async def get_user_action(self, session_id: str, action_id: int) -> dict[str, Any]:
         """
         Fetch operator step-by-step instructions for a given user_action ID.
         Used to surface guidance text to the dashboard.
         """
-        return await self._get(f"/v1/sessions/{session_id}/user_actions/{action_id}/")
+        return await self._get(f"/sessions/{session_id}/user_actions/{action_id}/")
 
     # ------------------------------------------------------------------
     # Kegs
@@ -181,11 +181,11 @@ class MiniBrewClient:
 
     async def get_kegs(self) -> list[dict[str, Any]]:
         """List all registered kegs."""
-        return await self._get("/v1/kegs/")
+        return await self._get("/kegs/")
 
     async def get_keg(self, keg_uuid: str) -> dict[str, Any]:
         """Fetch a single keg by its UUID."""
-        return await self._get(f"/v1/kegs/{keg_uuid}/")
+        return await self._get(f"/kegs/{keg_uuid}/")
 
     async def send_keg_command(
         self,
@@ -204,14 +204,67 @@ class MiniBrewClient:
         payload: dict[str, Any] = {"command": command}
         if params:
             payload.update(params)
-        return await self._post(f"/v1/kegs/{keg_uuid}/", json=payload)
+        return await self._post(f"/kegs/{keg_uuid}/", json=payload)
 
     async def update_keg(self, keg_uuid: str, data: dict[str, Any]) -> dict[str, Any]:
         """PATCH a keg record – used for updating the display_name."""
         async with httpx.AsyncClient(base_url=self._base_url, headers=self._headers, timeout=15) as client:
-            resp = await client.patch(f"/v1/kegs/{keg_uuid}/", json=data)
+            resp = await client.patch(f"/kegs/{keg_uuid}/", json=data)
             resp.raise_for_status()
             return resp.json()
+
+    # ── Recipes ───────────────────────────────────────────────────────────────
+
+    async def get_recipes(self) -> list[dict[str, Any]]:
+        """List all recipes in the recipe library."""
+        return await self._get("/recipes/")
+
+    async def get_recipe(self, recipe_id: str) -> dict[str, Any]:
+        """Fetch a single recipe by ID."""
+        return await self._get(f"/recipes/{recipe_id}/")
+
+    async def get_recipe_steps(self, recipe_id: str) -> list[dict[str, Any]]:
+        """Fetch the step sequence for a recipe."""
+        return await self._get(f"/recipes/{recipe_id}/steps/")
+
+    async def create_recipe(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create a new recipe."""
+        return await self._post("/recipes/", json=data)
+
+    async def get_recipe_steps(self, recipe_id: str) -> list[dict[str, Any]]:
+        """Fetch the step sequence for a recipe."""
+        return await self._get(f"/recipes/{recipe_id}/steps/")
+
+    # ── Beers ───────────────────────────────────────────────────────────────
+
+    async def get_beers(self, user_id: int = 1) -> list[dict[str, Any]]:
+        """List a user's beers."""
+        return await self._get(f"/beers/?brewer={user_id}")
+
+    async def get_beer(self, beer_id: str) -> dict[str, Any]:
+        """Fetch a single beer."""
+        return await self._get(f"/beers/{beer_id}/")
+
+    # ── Beer Styles ───────────────────────────────────────────────────────
+
+    async def get_beer_styles(self) -> list[dict[str, Any]]:
+        """List all available beer styles."""
+        return await self._get("/beerstyles/")
+
+    # ── Session extras ───────────────────────────────────────────────────
+
+    async def get_user_action_steps(
+        self, session_id: str, action_id: int
+    ) -> dict[str, Any]:
+        """
+        Fetch step-by-step instructions for a user_action.
+        Includes title, description, action_steps[].{title, description, image}.
+        """
+        return await self._get(f"/sessions/{session_id}/user_actions/{action_id}/")
+
+    async def get_cleaning_logs(self, session_id: str) -> dict[str, Any]:
+        """Fetch cleaning process logs for a session."""
+        return await self._get(f"/sessions/{session_id}/logs/cleaning/")
 
 
 # ---------------------------------------------------------------------------

@@ -197,7 +197,7 @@ def is_failure_state(state: int) -> bool:
     """
     return state in (
         ProcessState.BREW_FAILED,
-        ProcessState.FERMENTATION_FAILED,
+        84,   # FERMENTATION_FAILED (not in the IntEnum)
         93,   # SERVING_FAILED (not in the IntEnum but observed)
         ProcessState.CLEAN_FAILED,
     )

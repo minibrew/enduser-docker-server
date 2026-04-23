@@ -141,9 +141,10 @@ To activate these, create a session first using the **+ Brew**, **+ Clean**, or 
 
 - [ ] **Keg Detail Modal** — Click on a keg card to see full details, history, pour counts
 
-- [ ] **Multi-Device Support** — Manage multiple MiniBrew devices from one dashboard
-  - Device selector dropdown in header
-  - Aggregate view across all devices
+- [x] **Multi-Device Support** — Manage multiple MiniBrew devices from one dashboard *(done in v0.3.0)*
+  - Device selector dropdown in header — lists all devices across all 4 brewery buckets
+  - Aggregate view across all devices via `breweryoverview`; bucket selector switches active device
+  - Active bucket tracked in `StateStore`; `bucket_changed` WebSocket message on switch
 
 ---
 

@@ -43,9 +43,11 @@ Tokens are managed via the Settings panel or `.env` (`MINIBREW_API_KEY`). The ba
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/verify` | Proxies `GET /breweryoverview/` — groups devices by operational bucket |
+| GET | `/verify` | Proxies `GET /breweryoverview/` — groups devices by 4 operational buckets |
 | GET | `/devices` | Proxies `GET /v1/devices/` — per-device detail list |
-| GET | `/device` | Returns enriched device state (phase, labels, failure flags) for `device_id=default` |
+| GET | `/devices/all` | Returns all devices from all buckets with `_bucket` field attached |
+| POST | `/device/select` | Body: `{"bucket": "fermenting"}` — switch active bucket |
+| GET | `/device` | Returns enriched device state for the currently selected bucket |
 
 **`/verify` response:**
 ```json
@@ -60,6 +62,17 @@ Tokens are managed via the Settings panel or `.env` (`MINIBREW_API_KEY`). The ba
 }
 ```
 
+**`/devices/all` response:**
+```json
+{
+  "devices": [
+    { "uuid": "...", "_bucket": "brew_clean_idle", "title": "...", "process_state": 0, ... },
+    ...
+  ],
+  "selected_bucket": "brew_clean_idle"
+}
+```
+
 ---
 
 ### Sessions
@@ -71,6 +84,8 @@ Tokens are managed via the Settings panel or `.env` (`MINIBREW_API_KEY`). The ba
 | GET | `/sessions/{session_id}` | Fetch single session from API, cache it |
 | DELETE | `/sessions/{session_id}` | Delete (END_SESSION) a session |
 | POST | `/sessions/{session_id}/wake-then-delete` | Send wake (type 2), wait 1s, then delete |
+| GET | `/sessions/{session_id}/user-action/{action_id}` | Fetch operator step-by-step guidance |
+| GET | `/sessions/{session_id}/cleaning-logs` | Fetch cleaning process logs |
 | POST | `/session/{session_id}/command` | Send a named command to a session |
 
 **Create session — `POST /sessions`**
@@ -86,6 +101,50 @@ Tokens are managed via the Settings panel or `.env` (`MINIBREW_API_KEY`). The ba
 Allowed commands: `END_SESSION`, `NEXT_STEP`, `BYPASS_USER_ACTION`, `CHANGE_TEMPERATURE`, `GO_TO_MASH`, `GO_TO_BOIL`, `FINISH_BREW_SUCCESS`, `FINISH_BREW_FAILURE`, `CLEAN_AFTER_BREW`, `BYPASS_CLEAN`
 
 **`CHANGE_TEMPERATURE` requires `params.serving_temperature`**
+
+**`/sessions/{session_id}/user-action/{action_id}` response:**
+```json
+{
+  "title": "Add cleaning agent",
+  "description": "Open the ingredient compartment...",
+  "action_steps": [
+    { "order": 1, "title": "Open compartment", "description": "...", "image": "https://..." },
+    ...
+  ]
+}
+```
+
+---
+
+### Recipes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/recipes` | List all recipes. Supports `?beer=` filter for recipe by beer ID |
+| GET | `/recipes/{id}` | Get recipe detail with brew steps |
+| GET | `/recipes/{id}/steps` | Get recipe brew steps |
+
+**`GET /recipes` response:**
+```json
+{ "recipes": [{ "id": 123, "name": "IPA", "style_name": "American IPA" }, ...] }
+```
+
+**`GET /recipes/{id}` response:**
+```json
+{
+  "recipe": { "id": 123, "name": "IPA", "style_name": "American IPA", ... },
+  "steps": [{ "order": 1, "name": "Mash In", "temperature": 65, "duration": 60, ... }, ...]
+}
+```
+
+---
+
+### Beer Styles
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/beer-styles` | List all beer styles from MiniBrew API |
+| GET | `/beers` | List all beers |
 
 ---
 
@@ -119,11 +178,11 @@ Allowed commands: `END_SESSION`, `NEXT_STEP`, `BYPASS_USER_ACTION`, `CHANGE_TEMP
 
 Browser connects here for real-time state pushes.
 
-**On connect:** server sends `initial_state` with `sessions`, `kegs`, and `device`.
+**On connect:** server sends `initial_state` with `sessions`, `kegs`, `devices[]` (all devices from all buckets), `selected_bucket`, and `device` (enriched state for selected bucket).
 
-**On each poll cycle:** server broadcasts `device_update` with current `sessions` and `kegs`.
+**On each poll cycle:** server broadcasts `device_update` with current `sessions`, `kegs`, `devices[]`, and `selected_bucket`.
 
-**Client → server:** send `{type: "ping"}`, server replies `{type: "pong"}`.
+**Client → server:** send `{type: "ping"}`, server replies `{type: "pong"}`. Send `{type: "select_bucket", bucket: "fermenting"}` to switch the active device bucket.
 
 ```
 ws://localhost:8080/ws
@@ -133,10 +192,18 @@ ws://localhost:8080/ws
 
 | `type` | Payload |
 |--------|---------|
-| `initial_state` | `{sessions: [...], kegs: [...], device: {...}}` |
-| `device_update` | `{sessions: [...], kegs: [...], (partial — only changed fields)}` |
+| `initial_state` | `{sessions: [...], kegs: [...], devices: [...], selected_bucket: string, device: {...}}` |
+| `device_update` | `{sessions: [...], kegs: [...], devices: [...], selected_bucket: string}` |
 | `session_update` | A single session object |
+| `bucket_changed` | `{bucket: string, sessions: [...]}` |
 | `system_event` | `{type, payload}` for notable internal events |
+
+### Message Types (client → server)
+
+| `type` | Payload | Description |
+|--------|---------|-------------|
+| `ping` | — | Heartbeat; server replies `pong` |
+| `select_bucket` | `{bucket: string}` | Switch active device bucket (e.g. `"fermenting"`, `"brew_clean_idle"`) |
 
 ---
 
@@ -151,8 +218,8 @@ All upstream endpoints are called by the backend via `MiniBrewClient`. Token: `M
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/breweryoverview/` | Device overview grouped by bucket |
-| GET | `/devices/` | Full device list with status details |
+| GET | `/breweryoverview/` | Device overview grouped by 4 buckets (no `/v1/` prefix) |
+| GET | `/v1/devices/` | Full device list with status details |
 
 ### Sessions
 
@@ -163,7 +230,23 @@ All upstream endpoints are called by the backend via `MiniBrewClient`. Token: `M
 | POST | `/v1/sessions/` | Create new session |
 | PUT | `/v1/sessions/{id}/` | Send command (`{command_type: 2\|3\|6, ...}`) |
 | DELETE | `/v1/sessions/{id}/` | Delete/terminate session |
-| GET | `/v1/sessions/{id}/user_actions/{action_id}/` | Operator guidance |
+| GET | `/v1/sessions/{id}/user_actions/{action_id}/` | Operator step-by-step guidance |
+| GET | `/v1/sessions/{id}/logs/cleaning/` | Cleaning process logs |
+
+### Recipes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/recipes/` | List all recipes (supports `?beer=` filter) |
+| GET | `/v1/recipes/{id}/` | Single recipe detail |
+| GET | `/v1/recipes/{id}/steps/` | Recipe brew steps |
+
+### Beers & Styles
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/beers/` | List all beers |
+| GET | `/v1/beerstyles/` | List all beer styles |
 
 ### Kegs
 

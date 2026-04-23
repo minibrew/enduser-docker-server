@@ -85,7 +85,7 @@ class CommandService:
             return {"error": "SessionService not configured"}
 
         # Try local cache first; fall back to API fetch.
-        session = self._session_svc.get_session(session_id)
+        session = self._session_svc.get_session_cached(session_id)
         if not session:
             session = await self._session_svc.get_session(session_id)
 

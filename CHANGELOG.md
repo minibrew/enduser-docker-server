@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-04-23
+
+### Added
+- **Multi-device support** — Header dropdown shows all devices across all brewery buckets (brew_clean_idle, fermenting, serving, brew_acid_clean_idle); selecting a device switches the dashboard context to that bucket's enriched device state
+- **Session dropdown** — Sessions tab now shows a sorted dropdown (highest ID first, defaulting to the most recent session); each option displays `#ID [Status] BeerName ProcessState ★`; active session marked with ★
+- **Recipe browser** — Recipes tab lists all recipes from `GET /v1/recipes/`; click any recipe to view brew steps; start a brew session directly from a recipe
+- **Beer styles browser** — `GET /v1/beerstyles/` endpoint exposed via backend
+- **User action operator guidance** — Step-by-step instructions fetched from `GET /v1/sessions/{id}/user_actions/{actionId}/` and displayed in the session detail panel when a user_action is active
+- **Cleaning logs** — `GET /v1/sessions/{id}/logs/cleaning/` endpoint exposed for troubleshooting cleaning cycles
+
+### Changed
+- **Sessions tab UX** — Replaced session cards grid with a single sorted dropdown; highest session ID auto-selected on load
+- **Multi-device WebSocket** — WebSocket now sends `overview`, `selected_bucket`, and `devices[]` (all devices with their bucket) on every `device_update`; `bucket_changed` message on bucket switch
+- **`state_store.py` rewrite** — Per-bucket device state storage; `set_brewery_overview()` stores the full 4-bucket response; `select_bucket()` / `get_selected_bucket()` manage active bucket; `get_all_devices()` returns flattened device list
+
+### Fixed
+- **Double `/v1/v1/` paths** — `MiniBrewClient` base_url included `/v1/` and session/keg methods also prefixed paths with `/v1/` → 404 on all session and keg calls. Fixed by removing `/v1` from all session and keg method paths.
+- **FERMENTATION_FAILED crash** — `ProcessState.FERMENTATION_FAILED` does not exist in the IntEnum (only `FERMENTING = 80`). Fixed by using raw integer `84`.
+- **Session ID field** — API returns `session_id` not `id`; `sessionKey()` helper (`s.id ?? s.session_id`) used in all render functions
+- **`USER_ACTION_LABELS` duplication** — Removed duplicate copy from `session_service.py`; now imports from `state_engine.py`
+
+### Deprecated
+- `breweryoverview` is the **primary** device data source; `v1/devices` is supplementary (not updated in real-time)
+- `/debug/sessions-raw` endpoint removed
+
+---
+
 ## [0.2.0] — 2026-04-08
 
 ### Added

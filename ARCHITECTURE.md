@@ -61,11 +61,17 @@ No direct API calls from browser — all requests proxied to backend.
 | `/*` | `frontend:/usr/share/nginx/html` | Serves index.html, app.js, style.css, MB_logo.png |
 | `/session/*` | `http://backend:8000/session/*` | Session command proxy |
 | `/sessions/*` | `http://backend:8000/sessions/*` | Session CRUD proxy |
+| `/recipes/*` | `http://backend:8000/recipes/*` | Recipe list/detail proxy |
+| `/beers` | `http://backend:8000/beers` | Beer list proxy |
+| `/beer-styles` | `http://backend:8000/beer-styles` | Beer styles proxy |
 | `/keg/*` | `http://backend:8000/keg/*` | Keg command proxy |
 | `/kegs` | `http://backend:8000/kegs` | Keg list proxy |
 | `/verify` | `http://backend:8000/verify` | Brewery overview proxy |
 | `/devices` | `http://backend:8000/devices` | Device list proxy |
 | `/device` | `http://backend:8000/device` | Device state proxy |
+| `/device/select` | `http://backend:8000/device/select` | Bucket/device selection |
+| `/devices/all` | `http://backend:8000/devices/all` | All devices from all buckets |
+| `/settings/*` | `http://backend:8000/settings/*` | Token settings proxy |
 | `/health` | `http://backend:8000/health` | Health check proxy |
 | `/ws` | `ws://backend:8000/ws` | WebSocket upgrade |
 
@@ -74,25 +80,35 @@ No direct API calls from browser — all requests proxied to backend.
 | Method | Path | Calls MiniBrew API | Purpose |
 |--------|------|-------------------|---------|
 | GET | `/health` | — | Liveness check |
-| GET | `/verify` | `GET /v1/breweryoverview/` | Primary device status |
+| GET | `/verify` | `GET /breweryoverview/` | Primary device status (4 buckets) |
 | GET | `/devices` | `GET /v1/devices/` | Secondary device detail |
+| GET | `/devices/all` | `GET /breweryoverview/` | All devices from all buckets |
+| POST | `/device/select` | — | Switch active bucket |
 | GET | `/sessions` | `GET /v1/sessions/` | List all sessions |
 | GET | `/sessions/{id}` | `GET /v1/sessions/{id}/` | Get session detail |
+| GET | `/sessions/{id}/user-action/{action_id}` | `GET /v1/sessions/{id}/user_actions/{action_id}/` | Operator guidance |
+| GET | `/sessions/{id}/cleaning-logs` | `GET /v1/sessions/{id}/logs/cleaning/` | Cleaning logs |
 | POST | `/sessions` | `POST /v1/sessions/` | Create brew/clean/acid session |
+| POST | `/sessions/{id}/wake-then-delete` | `PUT /v1/sessions/{id}/` then `DELETE` | Wake then delete |
 | DELETE | `/sessions/{id}` | `DELETE /v1/sessions/{id}/` | Terminate session |
 | POST | `/session/{id}/command` | `PUT /v1/sessions/{id}/` | Send command (type 2/3/6) |
+| GET | `/recipes` | `GET /v1/recipes/` | List all recipes |
+| GET | `/recipes/{id}` | `GET /v1/recipes/{id}/` | Get recipe detail + steps |
+| GET | `/recipes/{id}/steps` | `GET /v1/recipes/{id}/steps/` | Get recipe steps |
+| GET | `/beers` | `GET /v1/beers/` | List all beers |
+| GET | `/beer-styles` | `GET /v1/beerstyles/` | List all beer styles |
 | GET | `/kegs` | `GET /v1/kegs/` | List all kegs |
 | GET | `/kegs/{uuid}` | `GET /v1/kegs/{uuid}/` | Get keg detail |
 | POST | `/keg/{uuid}/command` | `POST /v1/kegs/{uuid}/` | Send keg command |
 | POST | `/keg/{uuid}/display-name` | `PATCH /v1/kegs/{uuid}/` | Update keg display name |
-| GET | `/device` | — | Get cached device state |
+| GET | `/device` | — | Get cached device state for selected bucket |
 | WS | `/ws` | — | Real-time WebSocket |
 
 ### MiniBrew API (AWS) — `https://api.minibrew.io`
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/v1/breweryoverview/` | Bearer + `client: Breweryportal` | Device groups: brew_clean_idle, fermenting, serving, brew_acid_clean_idle |
+| GET | `/breweryoverview/` | Bearer + `client: Breweryportal` | Device groups: brew_clean_idle, fermenting, serving, brew_acid_clean_idle (no `/v1/` prefix) |
 | GET | `/v1/devices/` | Bearer + `client: Breweryportal` | Raw device list with current_state, process_state, user_action |
 | GET | `/v1/sessions/` | Bearer + `client: Breweryportal` | List sessions |
 | GET | `/v1/sessions/{id}/` | Bearer + `client: Breweryportal` | Session detail |
@@ -100,6 +116,12 @@ No direct API calls from browser — all requests proxied to backend.
 | PUT | `/v1/sessions/{id}/` | Bearer + `client: Breweryportal` | Send session command (type 2=wake, 3=generic, 6=update_recipe) |
 | DELETE | `/v1/sessions/{id}/` | Bearer + `client: Breweryportal` | Terminate session |
 | GET | `/v1/sessions/{id}/user_actions/{actionId}/` | Bearer + `client: Breweryportal` | Operator step-by-step instructions |
+| GET | `/v1/sessions/{id}/logs/cleaning/` | Bearer + `client: Breweryportal` | Cleaning process logs |
+| GET | `/v1/recipes/` | Bearer + `client: Breweryportal` | List all recipes (supports `?beer=` filter) |
+| GET | `/v1/recipes/{id}/` | Bearer + `client: Breweryportal` | Recipe detail |
+| GET | `/v1/recipes/{id}/steps/` | Bearer + `client: Breweryportal` | Recipe brew steps |
+| GET | `/v1/beers/` | Bearer + `client: Breweryportal` | List all beers |
+| GET | `/v1/beerstyles/` | Bearer + `client: Breweryportal` | List all beer styles |
 | GET | `/v1/kegs/` | Bearer + `client: Breweryportal` | List kegs |
 | GET | `/v1/kegs/{uuid}/` | Bearer + `client: Breweryportal` | Keg detail |
 | POST | `/v1/kegs/{uuid}/` | Bearer + `client: Breweryportal` | Send keg command |
@@ -113,15 +135,18 @@ MiniBrew API (poll every 2s)
        ▼
 PollingWorker._poll()
        │
-       ├──► StateStore (in-memory) ──► WebSocketManager
-       │                                      │
-       ├──► EventBus.publish("device_update") │
-       │                                      │
-       └───────────────────────────────────► broadcast({ device_update })
-                                              │
-                                              ▼
-                                     All Connected Browsers
-                                     (initial_state / device_update)
+       ├──► breweryoverview ──► 4 buckets stored in StateStore
+       │                              │
+       ├──► all sessions ─────────────► StateStore
+       │                              │
+       ├──► all kegs ─────────────────► StateStore
+       │                              │
+       └──► WebSocketManager ────────► broadcast({
+             devices[], selected_bucket, sessions[], kegs[]
+           })
+                                               │
+                                               ▼
+                                      All Connected Browsers
 ```
 
 ## Session Command Routing
@@ -147,6 +172,8 @@ CommandService.execute_session_command()
 4. **Command guards** — command type validated against user_action before dispatch
 5. **State engine** — maps user_action IDs to operator-friendly labels (12="Needs cleaning", 21="Start brewing", etc.)
 6. **In-memory store** — ready to swap for Redis/Valkey when horizontal scaling is needed
+7. **Multi-device via breweryoverview buckets** — `breweryoverview` returns 4 named buckets; the UIFlavours dropdown lets users switch between them; the selected bucket's first device is the active device
+8. **`/v1/` prefix only on sessions/kegs** — `breweryoverview` uses no `/v1/` prefix; all session and keg endpoints use `/v1/`
 
 ## Environment Variables
 

@@ -26,10 +26,15 @@ A production-grade, real-time MiniBrew brewing session orchestrator. Monitor and
 ## Features
 
 - **Real-time WebSocket dashboard** — no browser polling; all updates pushed from the server
+- **Multi-device management** — dropdown in header lists all devices across all operational buckets (brew_clean_idle, fermenting, serving, brew_acid_clean_idle); switch between devices instantly
 - **Live device state interpretation** — process states, user actions, phases (Brewing, Fermentation, Serving, Cleaning) displayed as human-readable labels
 - **Session management** — create brew, clean, and acid-clean sessions; issue state-aware commands
+- **Session dropdown** — sorted by session ID descending (highest first); shows status, beer name, and process state in each option; active session marked with ★
+- **Recipe browser** — list and browse all recipes from the MiniBrew API; view brew steps; start a brew session directly from any recipe
+- **Beer styles reference** — browse available beer styles
 - **Keg management** — serving mode, temperature control, beer name, reset
 - **Command validation** — commands are validated against the current `user_action` before being sent to the device
+- **Operator guidance** — step-by-step instructions fetched from the API and shown in the session detail panel when a user action is required
 - **Failure state detection** — BREWING_FAILED, FERMENTATION_FAILED, SERVING_FAILED, CIP_FAILED shown in red with FAIL prefix
 - **Settings panel** — update the bearer token at runtime without restarting; encrypted storage on the server
 - **Responsive dark-mode UI** — works on desktop and tablet
@@ -70,16 +75,17 @@ A production-grade, real-time MiniBrew brewing session orchestrator. Monitor and
 | Service | File | Purpose |
 |---------|------|---------|
 | `MiniBrewClient` | `minibrew_client.py` | httpx wrapper; all API calls with `client: Breweryportal` header |
-| `SessionService` | `session_service.py` | Brew, clean, acid-clean session CRUD |
+| `SessionService` | `session_service.py` | Brew, clean, acid-clean session CRUD; user_action steps; cleaning logs |
 | `CommandService` | `command_service.py` | Command routing + user_action validation guards |
-| `DeviceService` | `device_service.py` | breweryoverview ↔ device state sync |
+| `DeviceService` | `device_service.py` | breweryoverview ↔ device state sync; per-bucket storage |
 | `KegService` | `keg_service.py` | Keg listing, commands, display-name |
-| `PollingWorker` | `polling_worker.py` | Background poll loop every 2 seconds |
+| `RecipeService` | `recipe_service.py` | Recipe listing, detail, steps, creation |
+| `PollingWorker` | `polling_worker.py` | Background poll loop every 2 seconds; fetches all brewery buckets |
 | `WebSocketManager` | `websocket_manager.py` | Broadcasts to all connected browsers |
 | `EventBus` | `event_bus.py` | Internal pub/sub between services |
 | `StateEngine` | `state_engine.py` | ProcessState / UserAction / Phase maps |
 | `DiffEngine` | `diff_engine.py` | Only broadcasts meaningful state changes |
-| `StateStore` | `state_store.py` | In-memory singleton; ready for Redis swap |
+| `StateStore` | `state_store.py` | In-memory singleton; per-bucket device state; ready for Redis swap |
 | `SettingsStore` | `settings_store.py` | Encrypted token storage; hot-reload support |
 
 ---
@@ -324,23 +330,41 @@ All backend endpoints are proxied through nginx at `http://localhost:8080`.
 | DELETE | `/settings/token` | Delete stored token, revert to `.env` |
 | GET | `/verify` | Proxies `GET /breweryoverview/` — primary device status |
 | GET | `/devices` | Proxies `GET /v1/devices/` — secondary device detail |
+| GET | `/devices/all` | Returns all devices from all buckets with their bucket label |
+| POST | `/device/select` | Body: `{bucket}` — switch active bucket/device |
 | GET | `/sessions` | List all sessions |
 | POST | `/sessions` | Create session. Body: `{session_type, minibrew_uuid, beer_recipe}` |
 | DELETE | `/sessions/{id}` | Terminate session |
 | GET | `/sessions/{id}` | Get session detail |
+| POST | `/sessions/{id}/wake-then-delete` | Send wake (type 2), wait 1s, then delete |
+| GET | `/sessions/{id}/user-action/{action_id}` | Fetch operator step-by-step guidance |
+| GET | `/sessions/{id}/cleaning-logs` | Fetch cleaning process logs |
 | POST | `/session/{id}/command` | Send command. Body: `{command, params}` |
+| GET | `/recipes` | List all recipes |
+| GET | `/recipes/{id}` | Get recipe detail with brew steps |
+| GET | `/recipes/{id}/steps` | Get recipe brew steps |
+| GET | `/beers` | List all beers |
+| GET | `/beer-styles` | List all beer styles |
 | GET | `/kegs` | List all kegs |
 | POST | `/keg/{uuid}/command` | Send keg command |
 | POST | `/keg/{uuid}/display-name` | Update keg display name |
-| WS | `/ws` | WebSocket — receives `initial_state`, `device_update`, `session_update`, `system_event` |
+| WS | `/ws` | WebSocket — receives `initial_state`, `device_update`, `session_update`, `bucket_changed`, `system_event` |
 
 ### WebSocket Messages (Server → Client)
 
 ```json
-{ "type": "initial_state", "payload": { "sessions": [], "kegs": [], "device": {} } }
-{ "type": "device_update",  "payload": { "sessions": [], "kegs": [] } }
+{ "type": "initial_state",  "payload": { "sessions": [], "kegs": [], "devices": [], "selected_bucket": "brew_clean_idle", "device": {...} } }
+{ "type": "device_update",   "payload": { "sessions": [], "kegs": [], "devices": [], "selected_bucket": "brew_clean_idle" } }
 { "type": "session_update", "payload": { ...session... } }
+{ "type": "bucket_changed",  "payload": { "bucket": "fermenting", "sessions": [] } }
 { "type": "system_event",   "payload": { ... } }
+```
+
+### WebSocket Messages (Client → Server)
+
+```json
+{ "type": "select_bucket", "bucket": "fermenting" }  // Switch active device bucket
+{ "type": "ping" }                                        // Heartbeat — server replies { "type": "pong" }
 ```
 
 ### MiniBrew API
@@ -357,35 +381,38 @@ The backend proxies to `https://api.minibrew.io/v1/` with:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ [MiniBrew Logo] MiniBrew  UUID: ...  [phase]  IDLE  ⚙     │ ← Status bar
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Sessions              │  Base Station Controls              │
-│  [+ Brew][+ Clean]     │  [End Session] [Next Step] ...      │
-│  ─────────────────     │                                     │
-│  [Session cards...]     │  Keg Management  │  Keg Controls    │
-│                        │  [keg cards]     │  [select keg]   │
-│                        │                   │  [beer name]   │
-│                        │                   │  [temp °C]     │
-├──────────────────────────────────────────────────────────────┤
-│  Device Info  [↻ Overview] [↻ Devices] Auto: [off ▼]        │
-│  UUID: 2403B0994-SHNCANKM                                     │
-│  Process State: 0 (IDLE_STATE)    User Action: 12 (Needs…)  │
-│  Current Temp: —    Target Temp: —    Gravity: 1.00          │
-│  Raw API Response:  [▼ expand]                             │
-├──────────────────────────────────────────────────────────────┤
-│  Console  ✕                                                │
-│  [12:34:56] WebSocket connected                             │
+│ [MiniBrew] [Device: ▼ brew_clean_idle]  ⚙  [phase] IDLE  🟢│ ← Navbar
+├───────────────┬──────────────────────────────────────────────┤
+│ Brewery Status│                                              │
+│ Sessions      │  Device Info  UUID: 2403B0994-SHNCANKM     │
+│ Recipes       │  Process State: 0 (IDLE)  User Action: 12  │
+│ Commands      │  Current Temp: —    Target Temp: —           │
+│               ├─────────────────────┬────────────────────────┤
+│               │  Base Station       │  Kegs                  │
+│               │  [Next Step] ...    │  [keg dropdown]        │
+│               │  [Clean After Brew] │  [Set Temp] [Serving]  │
+├───────────────┴──────────────────────────────────────────────┤
+│ Console  ✕                                                 │
+│ [12:34:56] WebSocket connected                              │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+The navbar has four tabs: **Brewery Status**, **Sessions**, **Recipes**, **Commands**.
+
+### Sessions Tab
+
+Sessions are shown in a **sorted dropdown** (highest session ID first, most recent by default). The dropdown shows `#ID [Status] BeerName State ★` per option. Selecting a session loads its detail panel with operator instructions if a user action is required.
 
 ### Creating Sessions
 
 1. Click **+ Brew**, **+ Clean**, or **+ Acid Clean**
 2. Enter your MiniBrew **UUID** (e.g. `2403B0994-SHNCANKM`)
-3. For brew sessions, optionally paste a recipe JSON
-4. Click **Create** — the session card appears in the Sessions list
-5. Click the session card to select it and enable command buttons
+3. For brew sessions, optionally enter a recipe ID
+4. Click **Create** — the new session appears at the top of the dropdown
+
+### Recipes Tab
+
+Click **↻ Load Recipes** to fetch all recipes from the MiniBrew API. Click any recipe to see its brew steps. Enter a device UUID and click **Start Brew Session** to begin brewing from that recipe.
 
 ### Token Gate
 
@@ -484,13 +511,6 @@ The backend is unreachable. Check:
 
 curl http://localhost:8080/health
 # Should return {"status":"ok"}
-```
-
-### Logo (MB_logo.png) not showing
-
-The image is baked into the Docker container at build time. Rebuild:
-```bash
-./minibrew.sh frontend
 ```
 
 ### Device Info panel shows no data
