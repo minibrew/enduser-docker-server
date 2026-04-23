@@ -514,7 +514,7 @@ section h2 {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  background: #000;
+  background: #0a0a0a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -522,8 +522,8 @@ section h2 {
 .auth-gate__bg {
   position: absolute;
   inset: 0;
-  background: url("hops.png") center/60% auto no-repeat;
-  opacity: 0.18;
+  background: url("MB_logo.png") center/50% auto no-repeat;
+  opacity: 0.15;
   pointer-events: none;
 }
 .auth-gate__card {
@@ -537,7 +537,7 @@ section h2 {
   text-align: center;
   box-shadow: 0 0 80px rgba(245, 158, 11, 0.08), 0 30px 60px rgba(0,0,0,0.6);
 }
-.auth-gate__hops {
+.auth-gate__logo {
   height: 72px;
   width: auto;
   margin-bottom: 20px;
