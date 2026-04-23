@@ -938,16 +938,6 @@ function updateTokenStatusUI(isSet, source) {
 function bindEvents() {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  document.querySelectorAll(".auth-tab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll(".auth-tab").forEach(b => b.classList.toggle("active", b === btn));
-      document.getElementById("auth-login-form").style.display = tab === "login" ? "" : "none";
-      document.getElementById("auth-register-form").style.display = tab === "register" ? "" : "none";
-      document.getElementById("auth-error").style.display = "none";
-    });
-  });
-
   document.getElementById("login-submit-btn")?.addEventListener("click", async () => {
     const u = document.getElementById("login-username")?.value?.trim();
     const p = document.getElementById("login-password")?.value;
@@ -958,22 +948,10 @@ function bindEvents() {
     else { showDashboard(result.user); }
   });
 
-  document.getElementById("register-submit-btn")?.addEventListener("click", async () => {
-    const u = document.getElementById("register-username")?.value?.trim();
-    const p = document.getElementById("register-password")?.value;
-    const c = document.getElementById("register-confirm")?.value;
-    const err = document.getElementById("auth-error");
-    if (!u || !p) { err.textContent = "Username and password required"; err.style.display = ""; return; }
-    const result = await doRegister(u, p, c);
-    if (result.error) { err.textContent = result.error; err.style.display = ""; }
-    else { showDashboard(result.user); }
-  });
-
   document.getElementById("navbar-logout-btn")?.addEventListener("click", doLogout);
   document.getElementById("logout-btn")?.addEventListener("click", doLogout);
 
   document.getElementById("login-password")?.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login-submit-btn")?.click(); });
-  document.getElementById("register-password")?.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("register-submit-btn")?.click(); });
 
   // Device dropdown
   document.getElementById("device-select")?.addEventListener("change", onDeviceSelectChange);

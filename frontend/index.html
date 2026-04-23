@@ -9,29 +9,18 @@
 <body>
 
   <!-- Auth gate (shown when no JWT is stored) -->
-  <div id="auth-gate" class="token-gate" style="display:none;">
-    <div class="token-gate__card">
-      <img src="MB_logo.png" alt="MiniBrew" class="token-gate__logo">
-      <h1 class="token-gate__title">MiniBrew Session Orchestrator</h1>
-      <p class="token-gate__desc">Sign in to access the dashboard.</p>
-      <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login">Sign In</button>
-        <button class="auth-tab" data-tab="register">Register</button>
+  <div id="auth-gate" class="auth-gate" style="display:none;">
+    <div class="auth-gate__bg"></div>
+    <div class="auth-gate__card">
+      <img src="hops.png" alt="MiniBrew" class="auth-gate__hops">
+      <h1 class="auth-gate__title">MiniBrew</h1>
+      <p class="auth-gate__sub">Session Orchestrator</p>
+      <div class="auth-form">
+        <input type="text" id="login-username" class="auth-gate__input" placeholder="Username" autocomplete="username">
+        <input type="password" id="login-password" class="auth-gate__input" placeholder="Password" autocomplete="current-password">
+        <button id="login-submit-btn" class="auth-gate__submit">Sign In</button>
       </div>
-      <!-- Login form -->
-      <div id="auth-login-form" class="auth-form">
-        <input type="text" id="login-username" class="token-gate__input" placeholder="Username" autocomplete="username">
-        <input type="password" id="login-password" class="token-gate__input" placeholder="Password" autocomplete="current-password">
-        <button id="login-submit-btn" class="token-gate__submit">Sign In</button>
-      </div>
-      <!-- Register form (hidden by default) -->
-      <div id="auth-register-form" class="auth-form" style="display:none;">
-        <input type="text" id="register-username" class="token-gate__input" placeholder="Choose username" autocomplete="username">
-        <input type="password" id="register-password" class="token-gate__input" placeholder="Choose password" autocomplete="new-password">
-        <input type="password" id="register-confirm" class="token-gate__input" placeholder="Confirm password" autocomplete="new-password">
-        <button id="register-submit-btn" class="token-gate__submit">Create Account</button>
-      </div>
-      <p id="auth-error" class="token-gate__error" style="display:none;"></p>
+      <p id="auth-error" class="auth-gate__error" style="display:none;"></p>
     </div>
   </div>
 
