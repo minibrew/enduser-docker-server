@@ -231,10 +231,6 @@ class MiniBrewClient:
         """Create a new recipe."""
         return await self._post("/recipes/", json=data)
 
-    async def get_recipe_steps(self, recipe_id: str) -> list[dict[str, Any]]:
-        """Fetch the step sequence for a recipe."""
-        return await self._get(f"/recipes/{recipe_id}/steps/")
-
     # ── Beers ───────────────────────────────────────────────────────────────
 
     async def get_beers(self, user_id: int = 1) -> list[dict[str, Any]]:

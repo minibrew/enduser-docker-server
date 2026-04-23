@@ -13,7 +13,6 @@ which in turn triggers WebSocket broadcasts to all connected browsers.
 """
 
 import asyncio
-from typing import Any
 
 from minibrew_client import MiniBrewClient
 from state_store import get_state_store, BREWERY_BUCKETS
