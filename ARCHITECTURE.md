@@ -3,21 +3,21 @@
 ## Overview
 
 ```
-                                    ┌─────────────────────────────────────────┐
-                                    │           Docker Compose                 │
-                                    │                                         │
-Browser (http://localhost:8080)     │  ┌──────────────┐    ┌────────────────┐ │
-    │                                │  │   frontend   │    │    backend    │ │
-    │  HTTP/WebSocket                │  │  (nginx:80)  │    │ (uvicorn:8000)│ │
-    └───────────────────────────────► │  └──────┬───────┘    └───────┬────────┘ │
-                                     │         │                    │          │
-                                     │         │  proxy            │ API      │
-                                     │         ▼                    ▼          │
-                                     │  ┌──────────────┐    ┌────────────────┐ │
-                                     │  │  localhost   │    │ api.minibrew.io│ │
-                                     │  │  :8000        │    │ (HTTPS:443)    │ │
-                                     │  └──────────────┘    └────────────────┘ │
-                                     └─────────────────────────────────────────┘
+                                     ┌─────────────────────────────────────────┐
+                                     │           Docker Compose                 │
+                                     │                                         │
+ Browser (http://localhost:8080)     │  ┌──────────────┐    ┌────────────────┐ │
+     │                                │  │   frontend   │    │    backend    │ │
+     │  HTTP/WebSocket                │  │  (nginx:80)  │    │ (uvicorn:8000)│ │
+     └───────────────────────────────► │  └──────┬───────┘    └───────┬────────┘ │
+                                      │         │                    │          │
+                                      │         │  proxy            │ API      │
+                                      │         ▼                    ▼          │
+                                      │  ┌──────────────┐    ┌────────────────┐ │
+                                      │  │  localhost   │    │ api.minibrew.io│ │
+                                      │  │  :8000        │    │ (HTTPS:443)    │ │
+                                      │  └──────────────┘    └────────────────┘ │
+                                      └─────────────────────────────────────────┘
 ```
 
 ## Component Map
@@ -36,7 +36,7 @@ Browser (http://localhost:8080)     │  ┌────────────
 Browser                    Nginx                     FastAPI                   MiniBrew API
    │                         │                          │                            │
    │──── HTTP GET / --------►│                          │                            │
-   │                         │──── proxy /session/* ───►│                            │
+   │                         │──── proxy /sessions/* ──►│                            │
    │                         │                          │──── HTTP GET /v1/breweryoverview/ ──►│
    │                         │                          │◄─── 200 OK + JSON ──────────────────│
    │                         │◄─── proxied response ────│                            │
@@ -47,7 +47,6 @@ Browser                    Nginx                     FastAPI                   M
    │                         │                          │──── polling ───────────────►│
    │                         │                          │◄─── session data ────────────│
    │◄─── WS initial_state ───│                          │                            │
-   │                         │                          │                            │
    │◄─── WS device_update ───│◄─── broadcast ────────────│                            │
 ```
 
@@ -59,8 +58,8 @@ No direct API calls from browser — all requests proxied to backend.
 | Route | Proxies To | Purpose |
 |-------|-----------|---------|
 | `/*` | `frontend:/usr/share/nginx/html` | Serves index.html, app.js, style.css, MB_logo.png |
-| `/session/*` | `http://backend:8000/session/*` | Session command proxy |
 | `/sessions/*` | `http://backend:8000/sessions/*` | Session CRUD proxy |
+| `/session/*` | `http://backend:8000/session/*` | Session command proxy |
 | `/recipes/*` | `http://backend:8000/recipes/*` | Recipe list/detail proxy |
 | `/beers` | `http://backend:8000/beers` | Beer list proxy |
 | `/beer-styles` | `http://backend:8000/beer-styles` | Beer styles proxy |
@@ -72,19 +71,36 @@ No direct API calls from browser — all requests proxied to backend.
 | `/device/select` | `http://backend:8000/device/select` | Bucket/device selection |
 | `/devices/all` | `http://backend:8000/devices/all` | All devices from all buckets |
 | `/settings/*` | `http://backend:8000/settings/*` | Token settings proxy |
+| `/auth/*` | `http://backend:8000/auth/*` | Auth proxy |
 | `/health` | `http://backend:8000/health` | Health check proxy |
+| `/audit/*` | `http://backend:8000/audit/*` | Audit log proxy |
 | `/ws` | `ws://backend:8000/ws` | WebSocket upgrade |
 
 ### Backend (FastAPI) — `http://localhost:8000`
 
+#### Public Endpoints (no auth)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Liveness check |
+| GET | `/settings/token` | Token status: `{token_set, source}` |
+| POST | `/settings/token` | Save encrypted token (auth-bypassed in single-user mode) |
+| DELETE | `/settings/token` | Reset to .env token |
+| WS | `/ws` | WebSocket real-time push |
+| POST | `/auth/register` | Register dashboard user |
+| POST | `/auth/login` | Login → JWT access + refresh tokens |
+| POST | `/auth/refresh` | Exchange refresh token for new access token |
+| GET | `/auth/me` | Current user info |
+
+#### Protected Endpoints (JWT auth, currently bypassed → always returns admin)
+
 | Method | Path | Calls MiniBrew API | Purpose |
 |--------|------|-------------------|---------|
-| GET | `/health` | — | Liveness check |
 | GET | `/verify` | `GET /breweryoverview/` | Primary device status (4 buckets) |
 | GET | `/devices` | `GET /v1/devices/` | Secondary device detail |
 | GET | `/devices/all` | `GET /breweryoverview/` | All devices from all buckets |
 | POST | `/device/select` | — | Switch active bucket |
-| GET | `/sessions` | `GET /v1/sessions/` | List all sessions |
+| GET | `/sessions` | (from StateStore) | List all sessions from local cache |
 | GET | `/sessions/{id}` | `GET /v1/sessions/{id}/` | Get session detail |
 | GET | `/sessions/{id}/user-action/{action_id}` | `GET /v1/sessions/{id}/user_actions/{action_id}/` | Operator guidance |
 | GET | `/sessions/{id}/cleaning-logs` | `GET /v1/sessions/{id}/logs/cleaning/` | Cleaning logs |
@@ -97,12 +113,12 @@ No direct API calls from browser — all requests proxied to backend.
 | GET | `/recipes/{id}/steps` | `GET /v1/recipes/{id}/steps/` | Get recipe steps |
 | GET | `/beers` | `GET /v1/beers/` | List all beers |
 | GET | `/beer-styles` | `GET /v1/beerstyles/` | List all beer styles |
-| GET | `/kegs` | `GET /v1/kegs/` | List all kegs |
+| GET | `/kegs` | (from StateStore) | List all kegs from local cache |
 | GET | `/kegs/{uuid}` | `GET /v1/kegs/{uuid}/` | Get keg detail |
 | POST | `/keg/{uuid}/command` | `POST /v1/kegs/{uuid}/` | Send keg command |
 | POST | `/keg/{uuid}/display-name` | `PATCH /v1/kegs/{uuid}/` | Update keg display name |
 | GET | `/device` | — | Get cached device state for selected bucket |
-| WS | `/ws` | — | Real-time WebSocket |
+| GET | `/audit/log` | — | Read audit log with filters |
 
 ### MiniBrew API (AWS) — `https://api.minibrew.io`
 
@@ -141,15 +157,16 @@ PollingWorker._poll()
        │                              │
        ├──► all kegs ─────────────────► StateStore
        │                              │
-       └──► WebSocketManager ────────► broadcast({
-             devices[], selected_bucket, sessions[], kegs[]
-           })
-                                               │
-                                               ▼
-                                      All Connected Browsers
+       └──► EventBus.publish("device_update")
+                    │
+                    ▼
+             WebSocketManager.broadcast()
+                    │
+                    ▼
+           All Connected Browsers
 ```
 
-## Session Command Routing
+## Data Flow — Command Dispatch
 
 ```
 POST /session/{id}/command
@@ -157,7 +174,7 @@ POST /session/{id}/command
          ▼
 CommandService.execute_session_command()
          │
-         ├── user_action from session ──► get_allowed_commands()
+         ├── user_action from session ──► ALLOWED_COMMANDS_BY_USER_ACTION guard
          │
          ├── command = "CHANGE_TEMPERATURE"  ──► type 6 ──► update_recipe(serving_temperature)
          ├── command = "END_SESSION"        ──► DELETE /v1/sessions/{id}/
@@ -171,15 +188,18 @@ CommandService.execute_session_command()
 3. **Session-first** — all control goes through `POST /v1/sessions/` then `PUT /v1/sessions/{id}/`
 4. **Command guards** — command type validated against user_action before dispatch
 5. **State engine** — maps user_action IDs to operator-friendly labels (12="Needs cleaning", 21="Start brewing", etc.)
-6. **In-memory store** — ready to swap for Redis/Valkey when horizontal scaling is needed
-7. **Multi-device via breweryoverview buckets** — `breweryoverview` returns 4 named buckets; the UIFlavours dropdown lets users switch between them; the selected bucket's first device is the active device
-8. **`/v1/` prefix only on sessions/kegs** — `breweryoverview` uses no `/v1/` prefix; all session and keg endpoints use `/v1/`
+6. **In-memory store** — `StateStore` singleton is ephemeral; disappears on restart (Redis swap planned)
+7. **Multi-device via breweryoverview buckets** — `breweryoverview` returns 4 named buckets; the UI dropdown lets users switch between them; the selected bucket's first device is the active device
+8. **`/v1/` prefix convention** — `breweryoverview` uses no `/v1/` prefix; all session and keg endpoints use `/v1/`
+9. **Auth bypassed** — `get_current_user()` returns hardcoded admin; JWT auth is scaffolded but inactive in single-user mode
+10. **Audit log** — all commands and auth events appended to `/app/data/audit.log` (JSONL)
 
 ## Environment Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `MINIBREW_API_BASE` | `http://localhost:8080/api` | Base URL for MiniBrew API |
+| `MINIBREW_API_BASE` | `https://api.minibrew.io/v1/` | Base URL for MiniBrew API |
 | `MINIBREW_API_KEY` | — | Bearer token for API auth |
 | `POLL_INTERVAL_MS` | `2000` | Polling interval in milliseconds |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
+| `JWT_SECRET` | *(auto-generated)* | Secret for JWT signing (auto-generated if not set) |

@@ -21,7 +21,7 @@ Fix:
      saves an encrypted copy that overrides .env without rebuilding
 ```
 
-**Current active token:** `64747b138db8434284af1f85432b7d38`
+**Token tip:** Never log or commit API tokens. The server encrypts tokens saved via the Settings panel at rest using Fernet (AES-128-CBC).
 
 ---
 
@@ -55,6 +55,9 @@ The `breweryoverview` endpoint (no `/v1/` prefix) returns the **4-bucket view** 
 ### 5. Active Session Detection
 `active_session` on a device in `breweryoverview` is the device's **currently active session ID**. A session is considered "active on device" when `String(session.id) === String(device.active_session)`. The active session is marked with ★ in the sessions dropdown.
 
+### 6. Auth is Bypassed
+`get_current_user()` in `main.py` returns a hardcoded `AuthUser(user_id=1, username="admin")` — all auth endpoints work (register/login/refresh/me) but JWT validation is skipped. This is intentional for single-user mode. All protected endpoints accept any request without a real token check.
+
 ---
 
 ## Key Files & What They Do
@@ -68,12 +71,16 @@ backend/
 ├── device_service.py     # breweryoverview fetch + enrichment; per-bucket storage
 ├── keg_service.py        # Keg commands + display name updates
 ├── recipe_service.py     # Recipe list/detail/steps, beer styles, beer list
-├── state_engine.py       # ProcessState IntEnum, labels, phase mapping, ALLOWED_COMMANDS
+├── state_engine.py        # ProcessState IntEnum, labels, phase mapping, ALLOWED_COMMANDS
 ├── state_store.py        # In-memory singleton; per-bucket device state; sessions/kegs cache
 ├── websocket_manager.py  # WebSocket connections registry + broadcast
 ├── event_bus.py          # Async pub/sub for internal events
-├── polling_worker.py     # Background 2s poll loop — fetches all 4 breweryoverview buckets
-└── settings_store.py     # Fernet-encrypted token storage
+├── polling_worker.py     # Background asyncio 2s poll loop
+├── settings_store.py      # Fernet-encrypted token storage
+├── auth_service.py       # JWT auth (bypassed — always returns admin user)
+├── audit_service.py      # JSONL audit log at /app/data/audit.log
+├── diff_engine.py        # Smart diffing for WebSocket broadcast decisions
+└── keg_service.py        # Keg CRUD + display name
 
 frontend/
 ├── index.html            # Dashboard HTML — navbar with 4 tabs, token gate overlay

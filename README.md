@@ -80,13 +80,15 @@ A production-grade, real-time MiniBrew brewing session orchestrator. Monitor and
 | `DeviceService` | `device_service.py` | breweryoverview ↔ device state sync; per-bucket storage |
 | `KegService` | `keg_service.py` | Keg listing, commands, display-name |
 | `RecipeService` | `recipe_service.py` | Recipe listing, detail, steps, creation |
-| `PollingWorker` | `polling_worker.py` | Background poll loop every 2 seconds; fetches all brewery buckets |
+| `PollingWorker` | `polling_worker.py` | Background asyncio poll loop every 2 seconds; fetches all brewery buckets |
 | `WebSocketManager` | `websocket_manager.py` | Broadcasts to all connected browsers |
-| `EventBus` | `event_bus.py` | Internal pub/sub between services |
+| `EventBus` | `event_bus.py` | Async pub/sub between services (in-memory singleton) |
 | `StateEngine` | `state_engine.py` | ProcessState / UserAction / Phase maps |
 | `DiffEngine` | `diff_engine.py` | Only broadcasts meaningful state changes |
-| `StateStore` | `state_store.py` | In-memory singleton; per-bucket device state; ready for Redis swap |
-| `SettingsStore` | `settings_store.py` | Encrypted token storage; hot-reload support |
+| `StateStore` | `state_store.py` | In-memory singleton; per-bucket device state; all data ephemeral (gone on restart) |
+| `SettingsStore` | `settings_store.py` | Fernet-encrypted token storage; hot-reload support |
+| `AuthService` | `auth_service.py` | JWT auth scaffolding (currently bypassed in single-user mode) |
+| `AuditService` | `audit_service.py` | JSONL append-only audit log at `/app/data/audit.log` |
 
 ---
 
@@ -312,7 +314,13 @@ The orchestrator does not handle TLS. Terminate SSL at your reverse proxy or use
 
 ### Database Persistence (Roadmap)
 
-The `StateStore` is currently in-memory. For production with multiple replicas, swap in Redis — see `TODO.md`.
+The `StateStore` is currently in-memory — all data is lost on backend restart. See `BACKEND_RECREATION_PLAN.md` for the full plan to add PostgreSQL + Celery + MQTT integration.
+
+**Planned stack:**
+- PostgreSQL: user accounts, session history, audit log, encrypted token vault
+- Redis: state cache + Celery broker + WebSocket pub/sub (multi-replica)
+- Celery: background task queue replacing the asyncio PollingWorker
+- MQTT: real-time device events (lower latency than 2s polling)
 
 ---
 
