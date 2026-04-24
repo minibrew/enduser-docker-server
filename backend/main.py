@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
 from minibrew_client import MiniBrewClient
@@ -64,31 +64,17 @@ class AuthUser:
     username: str
 
 
-async def get_current_user(
-    creds: HTTPAuthorizationCredentials = Depends(security),
-) -> AuthUser | None:
+async def get_current_user() -> AuthUser:
     """
-    Validate the JWT in the Authorization header.
-    Returns an AuthUser if valid, None if no token provided.
-    Raises HTTPException 401 if the token is invalid/expired.
+    Skip JWT validation and return a default admin user.
     """
-    if not creds:
-        return None
-    payload = verify_token(creds.credentials)
-    if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    try:
-        return AuthUser(user_id=int(payload["sub"]), username=payload["username"])
-    except (KeyError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token")
+    return AuthUser(user_id=1, username="admin")
 
 
 async def require_current_user(
-    user: AuthUser | None = Depends(get_current_user),
+    user: AuthUser = Depends(get_current_user),
 ) -> AuthUser:
-    """Require a valid JWT — 401 if missing or invalid."""
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    """Always returns the default user."""
     return user
 
 
@@ -299,6 +285,16 @@ async def me(user: AuthUser = Depends(require_current_user)):
     return {"id": user.user_id, "username": user.username}
 
 
+@app.get("/users/me")
+async def get_minibrew_me(user: AuthUser = Depends(require_current_user)):
+    """Return the MiniBrew upstream user profile."""
+    client: MiniBrewClient = app.state.minibrew_client
+    try:
+        return await client.get_me()
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 # ── Token settings (still public — drives the token gate) ─────────────────
 
 @app.get("/settings/token")
@@ -467,6 +463,30 @@ async def delete_session(session_id: str, user: AuthUser = Depends(require_curre
     return result
 
 
+@app.post("/sessions/{session_id}/associate-keg")
+async def associate_keg(
+    session_id: str,
+    body: dict,
+    user: AuthUser = Depends(require_current_user),
+):
+    session_svc: SessionService = app.state.session_service
+    keg_uuid = body.get("keg_uuid")
+    if not keg_uuid:
+        raise HTTPException(status_code=400, detail="keg_uuid is required")
+    
+    result = await session_svc.associate_keg(session_id, keg_uuid)
+    await log_action(
+        action_type="session_keg_associate",
+        resource_type="session",
+        resource_id=session_id,
+        result="success",
+        user_id=user.user_id,
+        username=user.username,
+        details={"keg_uuid": keg_uuid},
+    )
+    return result
+
+
 @app.post("/sessions/{session_id}/wake-then-delete")
 async def wake_then_delete_session(session_id: str, user: AuthUser = Depends(require_current_user)):
     session_svc: SessionService = app.state.session_service
@@ -608,13 +628,13 @@ async def list_beer_styles(user: AuthUser = Depends(require_current_user)):
 @app.get("/recipes")
 async def list_recipes(beer_id: int | None = None, user: AuthUser = Depends(require_current_user)):
     recipe_svc: RecipeService = app.state.recipe_service
-    if beer_id:
-        try:
-            api_recipes = await recipe_svc.list_recipes()
-            return {"recipes": api_recipes}
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
-    return {"recipes": recipe_svc.list_cached_recipes()}
+    # If we want specific beer's recipes or if cache is empty, fetch from API
+    try:
+        recipes = await recipe_svc.list_recipes()
+        return {"recipes": recipes}
+    except Exception as e:
+        # Fallback to cache if API fails
+        return {"recipes": recipe_svc.list_cached_recipes(), "warning": str(e)}
 
 
 @app.get("/recipes/{recipe_id}")
@@ -622,8 +642,46 @@ async def get_recipe(recipe_id: str, user: AuthUser = Depends(require_current_us
     recipe_svc: RecipeService = app.state.recipe_service
     try:
         detail = await recipe_svc.get_recipe(recipe_id)
-        steps = await recipe_svc.get_recipe_steps(recipe_id)
-        return {"recipe": detail, "steps": steps}
+        steps = []
+        try:
+            steps = await recipe_svc.get_recipe_steps(recipe_id)
+        except Exception:
+            pass
+            
+        if not steps and detail:
+            # Try to build steps from the recipe detail
+            recipe_obj = detail[0] if isinstance(detail, list) and len(detail) > 0 else detail
+            mashing = recipe_obj.get("mashing", {}) if isinstance(recipe_obj, dict) else {}
+            mashing_steps = mashing.get("steps", []) if isinstance(mashing, dict) else []
+            if not isinstance(mashing_steps, list):
+                mashing_steps = []
+            for idx, ms in enumerate(mashing_steps):
+                if not isinstance(ms, dict):
+                    continue
+                steps.append({
+                    "order": ms.get("order", idx),
+                    "name": ms.get("name", "Mash Step"),
+                    "temperature": ms.get("temperature", ""),
+                    "duration": ms.get("duration", ""),
+                    "description": f"Mash at {ms.get('temperature', '?')}C for {ms.get('duration', '?')} min"
+                })
+
+            boiling = recipe_obj.get("boiling", {}) if isinstance(recipe_obj, dict) else {}
+            boiling_steps = boiling.get("steps", []) if isinstance(boiling, dict) else []
+            if not isinstance(boiling_steps, list):
+                boiling_steps = []
+            for idx, bs in enumerate(boiling_steps):
+                if not isinstance(bs, dict):
+                    continue
+                steps.append({
+                    "order": bs.get("order", idx) + 100,
+                    "name": "Boil Addition",
+                    "temperature": 100,
+                    "duration": bs.get("duration", ""),
+                    "description": f"Boil addition at {bs.get('duration', '?')} min"
+                })
+                
+        return {"recipe": detail[0] if isinstance(detail, list) and len(detail) > 0 else detail, "steps": steps}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -634,6 +692,64 @@ async def get_recipe_steps(recipe_id: str, user: AuthUser = Depends(require_curr
     try:
         steps = await recipe_svc.get_recipe_steps(recipe_id)
         return {"steps": steps}
+    except Exception as e:
+        # Try to fallback to parsing from get_recipe
+        try:
+            detail = await recipe_svc.get_recipe(recipe_id)
+            recipe_obj = detail[0] if isinstance(detail, list) and len(detail) > 0 else detail
+            steps = []
+            mashing = recipe_obj.get("mashing", {}) if isinstance(recipe_obj, dict) else {}
+            mashing_steps = mashing.get("steps", []) if isinstance(mashing, dict) else []
+            if not isinstance(mashing_steps, list):
+                mashing_steps = []
+            for idx, ms in enumerate(mashing_steps):
+                if not isinstance(ms, dict):
+                    continue
+                steps.append({
+                    "order": ms.get("order", idx),
+                    "name": ms.get("name", "Mash Step"),
+                    "temperature": ms.get("temperature", ""),
+                    "duration": ms.get("duration", "")
+                })
+            return {"steps": steps}
+        except Exception:
+            return {"status": "error", "error": str(e)}
+
+
+@app.post("/recipes")
+async def create_recipe(body: dict, user: AuthUser = Depends(require_current_user)):
+    recipe_svc: RecipeService = app.state.recipe_service
+    try:
+        result = await recipe_svc.create_recipe(body)
+        await log_action(
+            action_type="recipe_create",
+            resource_type="recipe",
+            resource_id=str(result.get("id")),
+            result="success",
+            user_id=user.user_id,
+            username=user.username,
+            details={"name": body.get("name")},
+        )
+        return result
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@app.put("/recipes/{recipe_id}")
+async def update_recipe(recipe_id: str, body: dict, user: AuthUser = Depends(require_current_user)):
+    recipe_svc: RecipeService = app.state.recipe_service
+    try:
+        result = await recipe_svc.update_recipe(recipe_id, body)
+        await log_action(
+            action_type="recipe_update",
+            resource_type="recipe",
+            resource_id=recipe_id,
+            result="success",
+            user_id=user.user_id,
+            username=user.username,
+            details={"name": body.get("name")},
+        )
+        return result
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -693,10 +809,16 @@ async def websocket_endpoint(ws: WebSocket):
     await ws_mgr.connect(ws)
 
     store = get_state_store()
-    dev_svc: DeviceService = app.state.device_service
+    session_svc: SessionService = app.state.session_service
+    keg_svc: KegService = app.state.keg_service
 
+    dev_svc: DeviceService = app.state.device_service
     try:
         await dev_svc.sync_device()
+        # Also sync sessions and kegs immediately on connect
+        await session_svc.get_sessions()
+        await keg_svc.list_kegs()
+        
         sessions = store.list_sessions()
         kegs = store.list_kegs()
     except Exception:
