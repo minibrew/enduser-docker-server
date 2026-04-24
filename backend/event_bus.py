@@ -24,6 +24,7 @@ class EventBus:
     """
 
     _instance: "EventBus | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "EventBus":
         if cls._instance is None:

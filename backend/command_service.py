@@ -159,7 +159,7 @@ class CommandService:
         if command == "SET_KEG_TEMPERATURE":
             return await self._keg_svc.set_keg_temperature(
                 keg_uuid,
-                params.get("temperature") if params else 0,
+                float(params.get("temperature", 0) if params else 0),
             )
 
         if command == "RESET_KEG":

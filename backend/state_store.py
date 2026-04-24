@@ -36,6 +36,7 @@ class StateStore:
     """
 
     _instance: "StateStore | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "StateStore":
         if cls._instance is None:

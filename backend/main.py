@@ -11,6 +11,7 @@ first API sync) and shutdown (stop the polling worker cleanly).
 
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -407,8 +408,11 @@ async def select_device_bucket(body: dict, user: AuthUser = Depends(require_curr
 async def create_session(body: dict, user: AuthUser = Depends(require_current_user)):
     session_svc: SessionService = app.state.session_service
     session_type = body.get("session_type")
-    minibrew_uuid = body.get("minibrew_uuid")
+    minibrew_uuid: str | None = body.get("minibrew_uuid")
     beer_recipe = body.get("beer_recipe")
+
+    if not minibrew_uuid:
+        raise HTTPException(status_code=400, detail="minibrew_uuid is required")
 
     if session_type == 0:
         result = await session_svc.create_brew_session(minibrew_uuid, beer_recipe)
@@ -513,8 +517,10 @@ async def session_command(
     user: AuthUser = Depends(require_current_user),
 ):
     cmd_svc: CommandService = app.state.command_service
-    command = body.get("command")
-    params = body.get("params")
+    command: str | None = body.get("command")
+    params: dict[str, Any] | None = body.get("params") or None
+    if not command:
+        raise HTTPException(status_code=400, detail="command is required")
     result = await cmd_svc.execute_session_command(session_id, command, params)
     is_error = result.get("error") is not None
     await log_action(
@@ -569,8 +575,10 @@ async def keg_command(
     user: AuthUser = Depends(require_current_user),
 ):
     cmd_svc: CommandService = app.state.command_service
-    command = body.get("command")
-    params = body.get("params")
+    command: str | None = body.get("command")
+    params: dict[str, Any] | None = body.get("params") or None
+    if not command:
+        raise HTTPException(status_code=400, detail="command is required")
     result = await cmd_svc.execute_keg_command(keg_uuid, command, params)
     is_error = result.get("error") is not None
     await log_action(
@@ -589,7 +597,9 @@ async def keg_command(
 @app.post("/keg/{keg_uuid}/display-name")
 async def keg_display_name(keg_uuid: str, body: dict, user: AuthUser = Depends(require_current_user)):
     keg_svc: KegService = app.state.keg_service
-    display_name = body.get("display_name")
+    display_name: str | None = body.get("display_name")
+    if not display_name:
+        raise HTTPException(status_code=400, detail="display_name is required")
     result = await keg_svc.update_display_name(keg_uuid, display_name)
     await log_action(
         action_type="keg_update",
@@ -815,12 +825,8 @@ async def websocket_endpoint(ws: WebSocket):
     dev_svc: DeviceService = app.state.device_service
     try:
         await dev_svc.sync_device()
-        # Also sync sessions and kegs immediately on connect
-        await session_svc.get_sessions()
-        await keg_svc.list_kegs()
-        
-        sessions = store.list_sessions()
-        kegs = store.list_kegs()
+        sessions = session_svc.list_sessions()
+        kegs = keg_svc.list_kegs()
     except Exception:
         sessions = store.list_sessions()
         kegs = store.list_kegs()
