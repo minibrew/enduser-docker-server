@@ -1,7 +1,5 @@
-import pytest
 from state_engine import (
     ALLOWED_COMMANDS_BY_USER_ACTION,
-    PHASES,
     get_phase,
     is_failure_state,
     ProcessState,
