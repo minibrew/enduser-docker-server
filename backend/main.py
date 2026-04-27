@@ -843,6 +843,7 @@ async def websocket_endpoint(ws: WebSocket):
             "kegs": kegs,
             "overview": overview,
             "selected_bucket": selected,
+            "selected_uuid": store.get_selected_device_uuid(),
             "devices": all_devices,
             "device": selected_device,
         },
@@ -853,15 +854,28 @@ async def websocket_endpoint(ws: WebSocket):
             data = await ws.receive_json()
             if data.get("type") == "ping":
                 await ws.send_json({"type": "pong"})
+            elif data.get("type") == "select_device":
+                uuid = data.get("uuid", "")
+                store.select_device(uuid)
+                await ws.send_json({
+                    "type": "device_changed",
+                    "payload": {
+                        "uuid": uuid,
+                        "device": store.get_device_state(uuid),
+                        "sessions": store.list_sessions(),
+                    },
+                })
             elif data.get("type") == "select_bucket":
                 bucket = data.get("bucket", "")
                 if bucket in BREWERY_BUCKETS:
                     store.select_bucket(bucket)
+                    selected_uuid = store.get_selected_device_uuid()
                     await ws.send_json({
                         "type": "bucket_changed",
                         "payload": {
                             "bucket": bucket,
-                            "device": store.get_device_state(bucket),
+                            "uuid": selected_uuid,
+                            "device": store.get_device_state(selected_uuid or ""),
                             "sessions": store.list_sessions(),
                         },
                     })

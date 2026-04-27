@@ -39,6 +39,10 @@ class RecipeService:
         """Create a new recipe via POST /recipes/."""
         return await self._client.create_recipe(data)
 
+    async def update_recipe(self, recipe_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Update an existing recipe via PUT /recipes/{id}/."""
+        return await self._client.update_recipe(recipe_id, data)
+
     def list_cached_recipes(self) -> list[dict[str, Any]]:
         """Return cached recipes from the local state store."""
         return get_state_store().list_recipes()

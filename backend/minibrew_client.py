@@ -231,6 +231,18 @@ class MiniBrewClient:
         """Create a new recipe."""
         return await self._post("/recipes/", json=data)
 
+    async def update_recipe(self, recipe_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Update an existing recipe."""
+        # Using custom put request since _put doesn't exist
+        async with httpx.AsyncClient(base_url=self._base_url, headers=self._headers, timeout=30) as client:
+            resp = await client.put(f"/recipes/{recipe_id}/", json=data)
+            resp.raise_for_status()
+            # Handle potential empty responses gracefully
+            text = resp.text
+            if not text:
+                return {}
+            return resp.json()
+
     # ── Beers ───────────────────────────────────────────────────────────────
 
     async def get_beers(self, user_id: int = 1) -> list[dict[str, Any]]:
@@ -240,6 +252,12 @@ class MiniBrewClient:
     async def get_beer(self, beer_id: str) -> dict[str, Any]:
         """Fetch a single beer."""
         return await self._get(f"/beers/{beer_id}/")
+
+    # ── Users ───────────────────────────────────────────────────────────────
+
+    async def get_me(self) -> dict[str, Any]:
+        """Fetch current user profile."""
+        return await self._get("/users/me/")
 
     # ── Beer Styles ───────────────────────────────────────────────────────
 

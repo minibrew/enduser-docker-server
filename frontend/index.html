@@ -6,6 +6,7 @@
   <title>MiniBrew Session Orchestrator</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -27,6 +28,7 @@
 
   <!-- Token gate (MiniBrew API token — shown after JWT auth, before MiniBrew token) -->
   <div id="token-gate" class="token-gate" style="display:none;">
+    <div class="token-gate__bg"></div>
     <div class="token-gate__card">
       <img src="MB_logo.png" alt="MiniBrew" class="token-gate__logo">
       <div id="auth-user-badge" class="auth-user-badge" style="display:none;">
@@ -34,9 +36,11 @@
         <button id="logout-btn" class="logout-btn">Sign Out</button>
       </div>
       <h1 class="token-gate__title">Connect MiniBrew</h1>
-      <p class="token-gate__desc">Enter your MiniBrew API bearer token to connect to your device.</p>
+      <p class="token-gate__desc">
+        Log in to <a href="https://pro.minibrew.com" target="_blank" rel="noopener" class="token-gate__link">pro.minibrew.com</a> with your MiniBrew account and copy your API token to connect.
+      </p>
       <div class="token-gate__form">
-        <input type="password" id="gate-token-input" class="token-gate__input" placeholder="Paste your bearer token here" autocomplete="off">
+        <input type="password" id="gate-token-input" class="token-gate__input" placeholder="Paste your API token here" autocomplete="off">
         <button id="gate-submit-btn" class="token-gate__submit">Connect</button>
       </div>
       <p id="gate-error" class="token-gate__error" style="display:none;"></p>
@@ -60,12 +64,28 @@
       <button class="navbar__tab" data-tab="sessions">Sessions</button>
       <button class="navbar__tab" data-tab="recipes">Recipes</button>
       <button class="navbar__tab" data-tab="commands">Commands</button>
+      <button class="navbar__tab" data-tab="water">Water Profiles</button>
     </nav>
     <div class="navbar__right">
+      <div class="navbar__controls">
+        <button id="refresh-device-btn" class="refresh-btn active" title="Refresh">↻ Refresh</button>
+        <div class="auto-refresh">
+          <label for="device-refresh-select">Auto:</label>
+          <select id="device-refresh-select">
+            <option value="0">Off</option>
+            <option value="1">1s</option>
+            <option value="2" selected>2s</option>
+            <option value="3">3s</option>
+            <option value="4">4s</option>
+            <option value="5">5s</option>
+            <option value="10">10s</option>
+          </select>
+        </div>
+      </div>
       <span id="navbar-username" class="navbar__username" style="display:none;"></span>
       <span class="navbar__phase" id="phase-label">—</span>
       <span class="navbar__state" id="process-state">IDLE</span>
-      <span class="navbar__indicator" id="connection-indicator">⚫</span>
+      <span id="connection-indicator" class="navbar__indicator" title="Disconnected">⚫</span>
       <button id="settings-btn" class="navbar__settings-btn" title="Settings">⚙</button>
       <button id="navbar-logout-btn" class="navbar__logout-btn" title="Sign Out" style="display:none;">Sign Out</button>
     </div>
@@ -76,83 +96,77 @@
     <!-- ── TAB: Brewery Status ─────────────────────────────────────────── -->
     <div id="tab-status" class="tab-panel active">
 
-      <!-- Device Info -->
-      <section class="device-info-section">
-        <h2>
-          <span id="device-section-title">Device Info</span>
-          <div class="device-info-controls">
-            <div class="device-info-btns">
-              <button id="refresh-device-btn" class="refresh-btn active" title="Refresh">↻ Refresh</button>
+      <!-- Top row: Info + Graph -->
+      <div class="status-top-row">
+        <!-- Device Info -->
+        <section class="device-info-section">
+          <h2>
+            <span id="device-section-title">Device Info</span>
+          </h2>
+          <div class="device-info-content" id="device-info-content">
+            <div class="device-field">
+              <span class="device-field__label">UUID:</span>
+              <span class="device-field__value device-field__value--uuid" id="info-uuid">—</span>
             </div>
-            <div class="auto-refresh">
-              <label for="auto-refresh-select">Auto:</label>
-              <select id="auto-refresh-select">
-                <option value="0">Off</option>
-                <option value="1">1s</option>
-                <option value="2" selected>2s</option>
-                <option value="3">3s</option>
-                <option value="4">4s</option>
-                <option value="5">5s</option>
-                <option value="10">10s</option>
-              </select>
+            <div class="device-field">
+              <span class="device-field__label">Custom Name:</span>
+              <span class="device-field__value" id="info-custom-name">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Stage:</span>
+              <span class="device-field__value" id="info-stage">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Process State:</span>
+              <span class="device-field__value" id="info-process-state">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">User Action:</span>
+              <span class="device-field__value" id="info-user-action">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Current Temp:</span>
+              <span class="device-field__value" id="info-current-temp">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Target Temp:</span>
+              <span class="device-field__value" id="info-target-temp">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Gravity:</span>
+              <span class="device-field__value" id="info-gravity">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Beer Name:</span>
+              <span class="device-field__value" id="info-beer-name">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Active Session:</span>
+              <span class="device-field__value" id="info-active-session">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Online:</span>
+              <span class="device-field__value" id="info-online">—</span>
+            </div>
+            <div class="device-field">
+              <span class="device-field__label">Software:</span>
+              <span class="device-field__value" id="info-software-version">—</span>
             </div>
           </div>
-        </h2>
-        <div class="device-info-content" id="device-info-content">
-          <div class="device-field">
-            <span class="device-field__label">UUID:</span>
-            <span class="device-field__value device-field__value--uuid" id="info-uuid">—</span>
+          <details class="device-raw-json">
+            <summary>Raw API Response</summary>
+            <pre id="info-raw-json">No data yet — click Refresh to fetch</pre>
+          </details>
+        </section>
+
+        <!-- Temperature Graph -->
+        <section class="device-graph-section">
+          <h2>Temperature Trend</h2>
+          <div class="graph-container">
+            <canvas id="temp-chart"></canvas>
           </div>
-          <div class="device-field">
-            <span class="device-field__label">Custom Name:</span>
-            <span class="device-field__value" id="info-custom-name">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Stage:</span>
-            <span class="device-field__value" id="info-stage">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Process State:</span>
-            <span class="device-field__value" id="info-process-state">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">User Action:</span>
-            <span class="device-field__value" id="info-user-action">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Current Temp:</span>
-            <span class="device-field__value" id="info-current-temp">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Target Temp:</span>
-            <span class="device-field__value" id="info-target-temp">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Gravity:</span>
-            <span class="device-field__value" id="info-gravity">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Beer Name:</span>
-            <span class="device-field__value" id="info-beer-name">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Active Session:</span>
-            <span class="device-field__value" id="info-active-session">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Online:</span>
-            <span class="device-field__value" id="info-online">—</span>
-          </div>
-          <div class="device-field">
-            <span class="device-field__label">Software:</span>
-            <span class="device-field__value" id="info-software-version">—</span>
-          </div>
-        </div>
-        <details class="device-raw-json">
-          <summary>Raw API Response</summary>
-          <pre id="info-raw-json">No data yet — click Refresh to fetch</pre>
-        </details>
-      </section>
+        </section>
+      </div>
 
       <!-- Controls + Kegs (side by side) -->
       <div class="status-bottom-row">
@@ -169,7 +183,8 @@
             <button class="control-btn" data-command="FINISH_BREW_SUCCESS" disabled>Finish Brew Success</button>
             <button class="control-btn" data-command="FINISH_BREW_FAILURE" disabled>Finish Brew Failure</button>
             <button class="control-btn" data-command="CLEAN_AFTER_BREW" disabled>Clean After Brew</button>
-            <button class="control-btn" data-command="BYPASS_CLEAN" disabled>Bypass Clean</button>
+            <button class="control-btn" data-command="BYPASS_CLEAN" title="Skip the required cleaning cycle (Use with caution!)" disabled>Bypass Clean</button>
+            <button id="associate-keg-btn" class="control-btn control-btn--secondary" title="Link the current session to a specific SmartKeg">Associate Keg</button>
           </div>
           <div class="temp-control" id="temp-control" style="display:none;">
             <label for="temp-input">Target Temperature (°C):</label>
@@ -197,9 +212,10 @@
             <button class="keg-action-btn" data-action="SET_KEG_TEMPERATURE" disabled>Set Temp</button>
             <button class="keg-action-btn" data-action="RESET_KEG">Reset Keg</button>
           </div>
-          <div class="keg-temp-row" id="keg-temp-row" style="display:none;">
-            <input type="number" id="keg-temp-input" step="0.1" value="4">
-            <button id="set-keg-temp-btn" class="btn-sm">Apply</button>
+          <div class="keg-temp-row" id="keg-temp-row" style="display:none; align-items:center; gap: 10px;">
+            <input type="range" id="keg-temp-input" min="0" max="30" step="0.1" value="10" style="flex: 1; accent-color: #f59e0b; cursor: pointer;">
+            <span id="keg-temp-display" style="color: #f59e0b; font-weight: 600; font-size: 13px; width: 45px; text-align: right;">10.0°C</span>
+            <button id="set-keg-temp-btn" class="btn-sm" style="margin-left: auto;">Apply</button>
           </div>
         </section>
       </div>
@@ -258,6 +274,10 @@
               <div class="session-detail-commands">
                 <button class="control-btn control-btn--danger" id="detail-delete-btn" disabled>Delete Session</button>
               </div>
+              <section class="raw-section" style="margin-top:24px;">
+                <h3>Raw Session API</h3>
+                <pre id="session-raw-json" class="raw-json"></pre>
+              </section>
             </div>
           </section>
         </div>
@@ -271,6 +291,9 @@
           Recipes
           <div class="recipes-controls">
             <button id="load-recipes-btn" class="btn-create">↻ Load Recipes</button>
+            <button id="import-recipe-btn" class="btn-create" title="Import a recipe from a JSON file">📥 Import JSON</button>
+            <a href="recipe_template.json" download class="btn-small" style="text-decoration:none; margin-left:10px; color:#94a3b8; font-size:11px;">📄 Template</a>
+            <input type="file" id="recipe-import-input" style="display:none" accept=".json">
           </div>
         </h2>
         <div class="recipes-layout">
@@ -284,14 +307,40 @@
               <p>Select a recipe to see details</p>
             </div>
             <div class="recipe-detail-content" id="recipe-detail-content" style="display:none;">
-              <h3 id="recipe-detail-name">—</h3>
-              <p id="recipe-detail-style" class="recipe-detail-meta">—</p>
+              <div class="recipe-detail-header">
+                <h2 id="recipe-detail-name">Select a recipe</h2>
+                <div class="recipe-detail-style" id="recipe-detail-style"></div>
+                <div class="recipe-detail-stats" id="recipe-detail-stats"></div>
+              </div>
               <div class="recipe-steps" id="recipe-steps">
                 <h4>Brew Steps</h4>
                 <div class="recipe-steps-list" id="recipe-steps-list"></div>
               </div>
-              <div class="recipe-start">
+
+              <div class="recipe-detail__notes">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <h3 style="margin: 0;">Public Notes</h3>
+                  <button id="recipe-save-notes-btn" class="btn-sm" style="background:#f59e0b; color:#0f1117; font-weight:600; border:none; padding:4px 12px;">Save Notes to Cloud</button>
+                </div>
+                <textarea id="recipe-notes-input" placeholder="Add mash/boil notes or water adjustments here..." style="min-height: 150px; width: 100%; margin-bottom: 15px; resize: vertical;"></textarea>
+                
+                <h3>Private Notes</h3>
+                <textarea id="recipe-private-notes-input" placeholder="Add personal/private notes here..." style="min-height: 150px; width: 100%; margin-bottom: 15px; resize: vertical;"></textarea>
+                
+                <div class="water-note-selector">
+                  <label>Append Water Profile:</label>
+                  <div class="water-note-selector__row">
+                    <select id="recipe-water-select">
+                      <option value="">— Select Profile —</option>
+                    </select>
+                    <button id="recipe-add-water-btn" class="btn-create btn-small">Add to Notes</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="recipe-detail__actions">
                 <button id="start-brew-from-recipe-btn" class="btn-create" disabled>Start Brew Session</button>
+                <button id="export-recipe-btn" class="btn-create" style="background:#4b5563;">📤 Export JSON</button>
                 <span id="recipe-start-uuid-wrap">
                   <input type="text" id="recipe-session-uuid" placeholder="Device UUID">
                 </span>
@@ -343,21 +392,58 @@
       </section>
     </div>
 
+    <!-- Water Profiles tab -->
+    <div class="tab-panel" id="tab-water">
+      <section class="card">
+        <div class="water-header">
+          <h2 class="card__title">Water Profiles</h2>
+          <div class="water-controls">
+            <label class="water-toggle">
+              <input type="checkbox" id="water-hide-chalk"> Hide Chalk (CaCO₃)
+            </label>
+            <input type="text" id="water-style-search" class="water-search" placeholder="Search by beer style…">
+          </div>
+        </div>
+        <p class="water-subtitle">Salt additions calculated for <strong>6.5 L</strong> of water. Values in grams. Based on <a href="https://www.brewersfriend.com/brewing-water-target-profiles/" target="_blank" rel="noopener">Brewer's Friend target profiles</a>.</p>
+        <div id="water-grid" class="water-grid">
+          <div class="empty-state">
+            <div class="empty-state__icon">🚰</div>
+            <div>Loading water profiles…</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
   </main>
 
-  <!-- Console (always visible at bottom) -->
-  <div class="console-dock">
+  <!-- Console (collapsible dock at bottom) -->
+  <div class="console-dock" id="console-dock">
     <div class="console-dock__header">
-      <span>Console</span>
+      <div class="console-dock__title-row">
+        <button id="console-toggle-btn" class="console-dock__toggle" title="Toggle console">▼</button>
+        <span>Console</span>
+      </div>
       <div class="console-dock__controls">
         <label class="console-suppress">
           <input type="checkbox" id="suppress-ws-logs" checked>
           Suppress WS
         </label>
+        <label class="console-refresh-label">
+          Auto:
+          <select id="console-refresh-select" class="console-refresh-select">
+            <option value="0">Off</option>
+            <option value="1000">1s</option>
+            <option value="2000" selected>2s</option>
+            <option value="5000">5s</option>
+            <option value="10000">10s</option>
+          </select>
+        </label>
         <button id="clear-log-btn">✕</button>
       </div>
     </div>
-    <div class="log-output" id="log-output"></div>
+    <div class="console-dock__body" id="console-dock-body">
+      <div class="log-output" id="log-output"></div>
+    </div>
   </div>
 
   <!-- Settings modal -->
@@ -381,6 +467,18 @@
           </div>
           <div class="settings-actions">
             <button id="settings-reset-btn" class="settings-reset-btn">Reset to .env</button>
+            <button id="settings-relog-btn" class="btn-cancel" style="background:#6366f1; color:white; border-color:#6366f1;">Logout / Relogin</button>
+          </div>
+        </div>
+        <div class="settings-section settings-section--audit">
+          <h4>Audit Log</h4>
+          <p class="settings-desc">Server-side action log (commands, session lifecycle, token changes).</p>
+          <div class="settings-audit-controls">
+            <button id="settings-load-audit-btn" class="btn-create">Load Recent Logs</button>
+            <span id="settings-audit-count" class="settings-audit-count"></span>
+          </div>
+          <div class="settings-audit-log" id="settings-audit-log" style="display:none;">
+            <div class="audit-log-entries" id="audit-log-entries"></div>
           </div>
         </div>
       </div>

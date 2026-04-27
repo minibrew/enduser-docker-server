@@ -158,6 +158,16 @@ class SessionService:
             params=params if params else None,
         )
 
+    async def associate_keg(self, session_id: str, keg_uuid: str) -> dict[str, Any]:
+        """
+        Associate a SmartKeg with an active session.
+        Sends PUT /v1/sessions/{id}/ with {"keg_uuid": keg_uuid}.
+        """
+        data = {"keg_uuid": keg_uuid}
+        result = await self._client.update_session(session_id, data)
+        get_state_store().set_session(str(session_id), result)
+        return result
+
     # ── Read operations ────────────────────────────────────────────────
 
     async def get_session(self, session_id: str) -> dict[str, Any]:

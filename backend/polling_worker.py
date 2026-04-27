@@ -56,39 +56,47 @@ class PollingWorker:
         try:
             overview = await self._client.verify()
             store.set_brewery_overview(overview)
-            for key in BREWERY_BUCKETS:
-                if overview.get(key):
-                    store.select_bucket(key)
-                    break
+            # Only select a device if none is currently selected
+            if not store.get_selected_device_uuid():
+                for key in BREWERY_BUCKETS:
+                    devs = overview.get(key, [])
+                    if devs:
+                        uuid = devs[0].get("uuid") or devs[0].get("serial_number")
+                        if uuid:
+                            store.select_device(uuid)
+                            break
+
             for key in BREWERY_BUCKETS:
                 devices = overview.get(key, [])
-                if not devices:
-                    continue
-                d = devices[0]
-                intelligence = build_state_intelligence(
-                    state=d.get("process_state", 0),
-                    user_action=d.get("user_action", 0),
-                    current_state=d.get("current_state", 0),
-                )
-                device_state = {
-                    **intelligence,
-                    "uuid": d.get("uuid") or d.get("serial_number"),
-                    "custom_name": d.get("title"),
-                    "stage": d.get("stage"),
-                    "software_version": d.get("software_version"),
-                    "online": d.get("online", False),
-                    "updating": d.get("updating", False),
-                    "beer_name": d.get("beer_name"),
-                    "beer_style": d.get("beer_style"),
-                    "current_temp": d.get("current_temp"),
-                    "target_temp": d.get("target_temp"),
-                    "gravity": d.get("gravity"),
-                    "session_id": d.get("session_id"),
-                    "active_session": d.get("session_id"),
-                    "_raw": d,
-                    "_bucket": key,
-                }
-                store.set_device_state(key, device_state)
+                for d in devices:
+                    uuid = d.get("uuid") or d.get("serial_number")
+                    if not uuid:
+                        continue
+
+                    intelligence = build_state_intelligence(
+                        state=d.get("process_state", 0),
+                        user_action=d.get("user_action", 0),
+                        current_state=d.get("current_state", 0),
+                    )
+                    device_state = {
+                        **intelligence,
+                        "uuid": uuid,
+                        "custom_name": d.get("title"),
+                        "stage": d.get("stage"),
+                        "software_version": d.get("software_version"),
+                        "online": d.get("online", False),
+                        "updating": d.get("updating", False),
+                        "beer_name": d.get("beer_name"),
+                        "beer_style": d.get("beer_style"),
+                        "current_temp": d.get("current_temp"),
+                        "target_temp": d.get("target_temp"),
+                        "gravity": d.get("gravity"),
+                        "session_id": d.get("session_id"),
+                        "active_session": d.get("session_id"),
+                        "_raw": d,
+                        "_bucket": key,
+                    }
+                    store.set_device_state(uuid, device_state)
         except Exception:
             pass
 
@@ -122,6 +130,7 @@ class PollingWorker:
                 "kegs": store.list_kegs(),
                 "overview": store.get_brewery_overview(),
                 "selected_bucket": store.get_selected_bucket(),
+                "selected_uuid": store.get_selected_device_uuid(),
                 "devices": store.get_all_devices(),
             },
         )

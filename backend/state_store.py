@@ -51,10 +51,10 @@ class StateStore:
         self._kegs: dict[str, dict[str, Any]] = {}
         # Full breweryoverview: {bucket_name: [device, ...], ...}
         self._brewery_overview: dict[str, Any] = {}
-        # Enriched device state keyed by bucket name (brew_clean_idle, fermenting, …)
+        # Enriched device state keyed by UUID
         self._device_state: dict[str, dict[str, Any]] = {}
-        # Currently selected device bucket key
-        self._selected_bucket: str = "brew_clean_idle"
+        # Currently selected device UUID
+        self._selected_device_uuid: str | None = None
         # Recipes and beers caches
         self._recipes: dict[str, dict[str, Any]] = {}
         self._beers: dict[str, dict[str, Any]] = {}
@@ -86,27 +86,59 @@ class StateStore:
         return devices
 
     def select_bucket(self, bucket: str) -> None:
-        """Set the active brewery overview bucket."""
+        """Compatibility: select the first device in this bucket."""
         if bucket in BREWERY_BUCKETS:
-            self._selected_bucket = bucket
+            devices = self._brewery_overview.get(bucket, [])
+            if devices:
+                d = devices[0]
+                uuid = d.get("uuid") or d.get("serial_number")
+                if uuid:
+                    self.select_device(uuid)
 
     def get_selected_bucket(self) -> str:
-        """Return the currently selected bucket key."""
-        return self._selected_bucket
+        """Compatibility: return the bucket of the selected device."""
+        dev = self.get_selected_device()
+        if dev:
+            # Try to find which bucket this device is in
+            for bucket in BREWERY_BUCKETS:
+                for d in self._brewery_overview.get(bucket, []):
+                    if (d.get("uuid") or d.get("serial_number")) == self._selected_device_uuid:
+                        return bucket
+        return "brew_clean_idle"
+
+    def select_device(self, uuid: str) -> None:
+        """Set the active device by UUID."""
+        self._selected_device_uuid = uuid
+
+    def get_selected_device_uuid(self) -> str | None:
+        """Return the currently selected device UUID."""
+        return self._selected_device_uuid
 
     def get_selected_device(self) -> dict[str, Any] | None:
-        """Return the first device from the selected bucket, or None."""
-        return self._brewery_overview.get(self._selected_bucket, [None])[0]
+        """Return the raw device data for the selected UUID."""
+        if not self._selected_device_uuid:
+            return None
+        for bucket in BREWERY_BUCKETS:
+            for d in self._brewery_overview.get(bucket, []):
+                if (d.get("uuid") or d.get("serial_number")) == self._selected_device_uuid:
+                    return d
+        return None
 
     # ── Device state ───────────────────────────────────────────────────
 
-    def get_device_state(self, bucket: str) -> dict[str, Any]:
-        """Return the enriched device state for a bucket."""
-        return self._device_state.get(bucket, {})
+    def get_device_state(self, uuid_or_bucket: str) -> dict[str, Any]:
+        """Return the enriched device state for a UUID (or bucket for compatibility)."""
+        if uuid_or_bucket in self._device_state:
+            return self._device_state[uuid_or_bucket]
+        # Fallback for bucket-based lookups
+        for dev in self._device_state.values():
+            if dev.get("_bucket") == uuid_or_bucket:
+                return dev
+        return {}
 
-    def set_device_state(self, bucket: str, data: dict[str, Any]) -> None:
-        """Store enriched device state for a bucket."""
-        self._device_state[bucket] = data
+    def set_device_state(self, uuid: str, data: dict[str, Any]) -> None:
+        """Store enriched device state for a UUID."""
+        self._device_state[uuid] = data
 
     def get_any_enriched_device(self) -> dict[str, Any]:
         """Return the first non-empty enriched device state across all buckets."""

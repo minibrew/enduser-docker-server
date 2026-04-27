@@ -1,0 +1,1025 @@
+﻿----------------------- Page 1-----------------------
+
+MiniBrew REST API Documentation 
+
+
+
+          Based on Brewery Portal v 1.73.51 (https://pro.minibrew.io) 
+
+
+
+Architecture Overview 
+
+
+
+ Component                      URL                                            Purpose 
+
+
+
+                                                      CRUD operations, authentication, device & session 
+
+REST API       https://api.minibrew.io/ 
+
+                                                      management 
+
+
+
+Static 
+
+               https://minibrew.s3.amazonaws.com/ Images, device icons 
+
+Assets 
+
+
+
+Authentication 
+
+
+
+Required Headers (ALL API requests) 
+
+
+
+Authorization: Bearer <token> 
+
+Accept : application/json 
+
+Content-Type: application/json 
+
+client : Breweryportal 
+
+
+
+CRITICAL: The client : Breweryportal header is required. Without it, the API returns HTTP 426 (Upgrade 
+
+Required). 
+
+
+
+Token Management 
+
+
+
+Method       Endpoint                 Description 
+
+
+
+POST     v2/token/          Obtain access token 
+
+
+
+POST     v2/token/refresh/ Refresh an expired access token 
+
+
+
+Example : Authenticated curl request 
+
+
+
+curl 'https://api.minibrew.io/v 1/breweryoverview/' \ 
+
+  -H 'Authorization: Bearer <your-token>' \ 
+
+  -H 'Accept : application/json' \ 
+
+  -H 'Content-Type: application/json' \ 
+
+  -H 'client : Breweryportal' 
+
+
+
+REST API Endpoints 
+
+
+
+Base URL: https://api.minibrew.io/ 
+
+
+
+User Management 
+
+
+----------------------- Page 2-----------------------
+
+Method            Endpoint                    Description                                   Notes 
+
+
+
+GET       v 1/users/me/              Get current user profile 
+
+
+
+PUT       v 1/users/me/              Update user profile             Supports multipart/form-data (avatar upload) 
+
+
+
+POST      v 1/users/psw-change/ Change password                      Body : {old_password, new_password} 
+
+
+
+POST      v 1/users/recover/         Password recovery / reset 
+
+
+
+User Object 
+
+
+
+{ 
+
+  "id": 3996, 
+
+  "uuid": "cb4715a2-...", 
+
+  "first_name": "Kenneth", 
+
+  "last_name": "Raknes", 
+
+  "display_name": "raknes", 
+
+  "access_type":  1, 
+
+  "beta_tester": false, 
+
+  "confirmed": true, 
+
+  "terms_conditions_accepted": true, 
+
+  "subscription_account_id": "cst_N3jALYb2VW" 
+
+} 
+
+
+
+Devices 
+
+
+
+ Method        Endpoint               Description                      Notes 
+
+
+
+GET        v 1/devices/       List all registered devices 
+
+
+
+POST       v 1/devices/       Register a new device          Body : {serial_number} 
+
+
+
+GET        v 1/devices/{id}/ Get single device details 
+
+
+
+DELETE v 1/devices/{id}/ Unregister a device 
+
+
+
+Device Object 
+
+
+
+{ 
+
+  "uuid": "2403B0702-GT69B8C9", 
+
+  "serial_number": "2403B0702-GT69B8C9", 
+
+  "current_state": 0, 
+
+  "process_type": 0, 
+
+  "process_state": 0, 
+
+  "user_action": 0, 
+
+  "device_type": 0, 
+
+  "connection_status":  1, 
+
+  "last_time_online": "2026-03-23T08:24:48Z", 
+
+  "software_version": "3.2.3, idf-v4.2-50-g11005797d", 
+
+  "custom_name": "Kenneth's MiniBrew" 
+
+} 
+
+
+
+Device Types: 0 = MiniBrew (brewer),  1 = MiniBrew Keg 
+
+
+
+Brewery Overview 
+
+
+
+Method           Endpoint                    Description 
+
+
+----------------------- Page 3-----------------------
+
+GET        v 1/breweryoverview/ Get brewery dashboard data 
+
+
+
+Response Structure 
+
+
+
+{ 
+
+  "brew_clean_idle": [{ /* devices in idle/clean state */ }], 
+
+  "brew_acid_clean_idle": [{ /* devices needing acid clean */ }], 
+
+  "fermenting": [{ /* devices currently fermenting */ }], 
+
+  "serving": [{ /* devices currently serving */ }] 
+
+} 
+
+
+
+Brewery Overview Device Fields 
+
+
+
+{ 
+
+  "uuid": "2403B0702-GT69B8C9", 
+
+  "serial_number": "2403B0702-GT69B8C9", 
+
+  "title": "Kenneth's MiniBrew", 
+
+  "sub_title": "Connected", 
+
+  "stage": "Preparing fermentation", 
+
+  "status_time":  1555200, 
+
+  "current_temp":  17.8, 
+
+  "target_temp":  18, 
+
+  "gravity": "1.00", 
+
+  "online": true, 
+
+  "user_action": 0, 
+
+  "process_type": 0, 
+
+  "device_type": 0, 
+
+  "session_id": 77629, 
+
+  "beer_name": "Fairytale Pils", 
+
+  "beer_style": "German Pils", 
+
+  "software_version": "3.2.3, idf-v4.2-50-g11005797d", 
+
+  "image": "https://minibrew.s3.amazonaws.com/static/devices/base.png" 
+
+} 
+
+
+
+Sessions (Brewing, Fermenting, Cleaning, Serving) 
+
+
+
+ Method                     Endpoint                                 Description                              Notes 
+
+
+
+GET        v 1/sessions/                                 List all sessions 
+
+
+
+GET        v 1/sessions/?beer_recipe={recipeId} List sessions for a specific recipe 
+
+
+
+POST       v 1/sessions/                                 Create a new session                     See session types below 
+
+
+
+GET        v 1/sessions/{id}/                            Get session details                      Full session + device state 
+
+
+
+PUT        v 1/sessions/{id}/                            Send a command to device                 Body : {command_type: N} 
+
+
+
+PATCH      v 1/sessions/{id}/                            Update session fields 
+
+
+
+DELETE v 1/sessions/{id}/                                Delete/terminate a session               Returns {seq: N} 
+
+
+
+Session Object 
+
+
+----------------------- Page 4-----------------------
+
+{ 
+
+  "id": 77629, 
+
+  "status":  1, 
+
+  "session_type": 0, 
+
+  "profile": 3996, 
+
+  "beer": {"id":  17760, "name": "Fairytale Pils", "style_name": "German Pils", "image": null}, 
+
+  "beer_recipe_id":  1487639, 
+
+  "beer_recipe_version": "2", 
+
+  "brew_timestamp":  1774171440.172072, 
+
+  "is_brewpack": false, 
+
+  "original_gravity": null, 
+
+  "pending_command_type": 3, 
+
+  "pending_command_error": 4, 
+
+  "pending_command_seq": null, 
+
+  "device": { /* full device object */ } 
+
+} 
+
+
+
+Session Status Values 
+
+
+
+Status                 Meaning 
+
+
+
+ 1       Active (in progress) 
+
+
+
+ 2       Completed 
+
+
+
+ 4       Completed (keg device sessions) 
+
+
+
+ 6       Terminated/ Cancelled 
+
+
+
+Session Types 
+
+
+
+Value      String Constant                Description 
+
+
+
+ 0                                 Full brew + fermentation 
+
+
+
+ 2      "clean_minibrew"           Standard cleaning cycle 
+
+
+
+        "acid_clean_minibrew" Acid cleaning cycle 
+
+
+
+        "clean_keg"                Keg cleaning cycle 
+
+
+
+Command Types (PUT v1/sessions/{id}/) 
+
+
+
+command_type                              Description 
+
+
+
+ 2                  Wake device (clears pending_command_error) 
+
+
+
+ 3                  Generic command (accepted in most states) 
+
+
+
+ 6                  UpdateRecipe (requires serving_temperature field) 
+
+
+
+Commands 0,  1, 4, 5 are rejected in most states. 
+
+
+
+Pending Command Error Values 
+
+
+
+Error                   Meaning 
+
+
+
+ 0     No error 
+
+
+
+ 3     Unknown error 
+
+
+
+ 4     Command failed / device unresponsive 
+
+
+
+Creating Sessions 
+
+
+----------------------- Page 5-----------------------
+
+Brew session: 
+
+
+
+POST v 1/sessions/ 
+
+{"minibrew_uuid": "2403B0702-GT69B8C9", "session_type": 0, "beer_recipe":  1487639} 
+
+
+
+Clean session: 
+
+
+
+POST v 1/sessions/ 
+
+{"minibrew_uuid": "2403B0702-GT69B8C9", "session_type": "clean_minibrew"} 
+
+
+
+Acid clean session: 
+
+
+
+POST v 1/sessions/ 
+
+{"minibrew_uuid": "2403B0702-GT69B8C9", "session_type": "acid_clean_minibrew"} 
+
+
+
+Session Monitoring Endpoints 
+
+
+
+Method                         Endpoint                               Description                              Notes 
+
+
+
+                                                               Get full session + 
+
+GET        v 1/sessions/{id}/                                                                Poll for status updates 
+
+                                                               device state 
+
+
+
+                                                               Get cleaning process          Returns 404 during user-action 
+
+GET        v 1/sessions/{id}/logs/cleaning/ 
+
+                                                               logs                          phase 
+
+
+
+                                                                                             Step-by-step instructions with 
+
+GET        v 1/sessions/{id}/user_actions/{action_id}/ Get user action steps 
+
+                                                                                             images/videos 
+
+
+
+User Action Object 
+
+
+
+{ 
+
+  "user_action": 2, 
+
+  "title": "Prepare cleaning", 
+
+  "description": "029", 
+
+  "action_steps": [ 
+
+    { 
+
+      "id":  163, 
+
+      "title": "Open Water Supply", 
+
+      "description": "Open the water tap.", 
+
+      "order": 9, 
+
+      "video": null, 
+
+      "image": "https://minibrew.s3.amazonaws.com/media/actions/images/original/...", 
+
+      "small_image": "...", 
+
+      "normal_image": "...", 
+
+      "medium_image": "...", 
+
+      "large_image": "..." 
+
+    } 
+
+  ] 
+
+} 
+
+
+
+Beers 
+
+
+
+ Method                Endpoint                   Description 
+
+
+
+GET         v 1/beers/?brewer={userId} List user's beers 
+
+
+----------------------- Page 6-----------------------
+
+GET       v 1/beers/{id}/              Get beer details 
+
+
+
+POST      v 1/beers/                   Create a new beer 
+
+
+
+PUT       v 1/beers/{id}/              Update a beer 
+
+
+
+DELETE v 1/beers/{id}/                 Delete a beer 
+
+
+
+Recipes 
+
+
+
+Method            Endpoint                Description 
+
+
+
+GET      v 1/recipes/?beer={beerId} List recipes for a beer 
+
+
+
+GET      v 1/recipes/{id}/           Get recipe details 
+
+
+
+POST     v 1/recipes/                Create a new recipe 
+
+
+
+PUT      v 1/recipes/{id}/            Update a recipe 
+
+
+
+POST     v2/check_recipes/           Validate a recipe 
+
+
+
+Community & Sharing 
+
+
+
+ Method            Endpoint                    Description 
+
+
+
+GET       v 1/shared_recipes/         List community shared recipes 
+
+
+
+GET       v 1/shared_favourites/      List user's favourites 
+
+
+
+POST      v 1/shared_favourites/      Add a favourite 
+
+
+
+DELETE v 1/shared_favourites/{id}/ Remove a favourite 
+
+
+
+Ingredients 
+
+
+
+Method             Endpoint                    Description 
+
+
+
+GET      v 1/hops/?limit=200           List all hops 
+
+
+
+POST     v 1/hops/                     Create custom hop 
+
+
+
+GET      v 1/fermentables/?limit=200 List all fermentables (malts) 
+
+
+
+POST     v 1/fermentables/             Create custom fermentable 
+
+
+
+GET      v 1/yeasts/?limit=200         List all yeasts 
+
+
+
+POST     v 1/yeasts/                   Create custom yeast 
+
+
+
+GET      v 1/adjuncts/?limit=200       List all adjuncts 
+
+
+
+POST     v 1/adjuncts/                 Create custom adjunct 
+
+
+
+GET      v 1/laboratories/             List laboratories 
+
+
+
+Beer Styles 
+
+
+
+Method      Endpoint          Description 
+
+
+
+GET      v 1/beerstyles/ List all beer styles 
+
+
+
+GET      v 1/styles/     List styles (alternative) 
+
+
+
+Subscriptions & Billing 
+
+
+
+Method           Endpoint                 Description 
+
+
+
+GET      v 1/mollie_subscriptions/  Get subscription status 
+
+
+
+POST     v 1/memberships/cancel/ Cancel membership 
+
+
+
+POST     v 1/coupons/redeem/        Activate a coupon code 
+
+
+
+GET      v 1/brewticket/{id}/       Get brew ticket info 
+
+
+----------------------- Page 7-----------------------
+
+Device State Machine 
+
+
+
+State Fields 
+
+
+
+       Field             Description                                   Values 
+
+
+
+current_state      Device hardware state    0 = idle,  1 = running autonomously, 2 = waiting for user action 
+
+
+
+process_type       Current process          0 = none, 2 = cleaning, 4 = serving 
+
+
+
+process_state      Step within process      See table below 
+
+
+
+user_action        Pending user interaction See user_action reference 
+
+
+
+connection_status Online status             1 = connected 
+
+
+
+process_state Values (observed during cleaning) 
+
+
+
+process_state current_state user_action       Stage          Description 
+
+
+
+0               0              0            Idle      No active process 
+
+
+
+101             2              2            Rinsing   Waiting for user to prepare 
+
+
+
+101             2              32           Rinsing   Waiting for user to start 
+
+
+
+113             1              0            Rinsing   Autonomous rinsing 
+
+
+
+114             1              0            Rinsing   Rinsing advancing 
+
+
+
+111             1              0            Cleaning CIP phase 
+
+
+
+108             2              37           Cleaning CIP done, user teardown 
+
+
+
+user_action Reference 
+
+
+
+ID                 Title                          Context 
+
+
+
+0   (none)                             Device running autonomously 
+
+
+
+2  Prepare cleaning                    Cleaning session 
+
+
+
+3  Check activity started              Brewing/fermentation 
+
+
+
+4  Add ingredient                      Brewing 
+
+
+
+5  Remove ingredient                   Brewing 
+
+
+
+8  Remove trub                         Brewing 
+
+
+
+9  Check activity stopped              Brewing/fermentation 
+
+
+
+10 Mount Tap                           Serving 
+
+
+
+12 Needs cleaning                      Post-session 
+
+
+
+13 Brewing Failed                      Error 
+
+
+
+16 Add Rinse Water                     Cleaning 
+
+
+
+17 Clean the ball valve                Maintenance 
+
+
+
+19 Fill mash tun                       Brewing 
+
+
+
+20 Fill carousel                       Brewing 
+
+
+
+21 Start brewing                       Brewing 
+
+
+
+22 Manual sparge                       Brewing 
+
+
+
+24 Place carrousel                     Brewing 
+
+
+
+25 Resume brewing                      Brewing 
+
+
+
+26 Prepare fermentation                Fermentation 
+
+
+
+28 Place airlock                       Fermentation 
+
+
+----------------------- Page 8-----------------------
+
+29 Remove airlock                      Post-fermentation 
+
+
+
+31 Connect pressurizer                 Serving 
+
+
+
+32 Start cleaning                      Cleaning session 
+
+
+
+33 Fermentation Failed                 Error 
+
+
+
+34 Serving Failed                      Error 
+
+
+
+35 Cleaning Failed                     Error 
+
+
+
+36 Pair Gravity Sensor                 Setup 
+
+
+
+37 CIP Finished                        Cleaning complete 
+
+
+
+39 Check Keg's Presence                Hardware check 
+
+
+
+40 Check the ballvalve                 Hardware check 
+
+
+
+41 Check rinse connector               Hardware check 
+
+
+
+42 Check inlet water connection        Hardware check 
+
+
+
+44 Check Rinse flow                    Hardware check 
+
+
+
+45 Check the mash tun                  Hardware check 
+
+
+
+46 Check the Carousel                  Hardware check 
+
+
+
+47 Check mash line flow                Hardware check 
+
+
+
+48 Check Boil line flow                Hardware check 
+
+
+
+49 Check the CIP container             Hardware check 
+
+
+
+51 Check the cleaning flow             Hardware check 
+
+
+
+52 Check the keg is placed correctly   Hardware check 
+
+
+
+53 Place Blow-off                      Fermentation 
+
+
+
+54 Remove Blow-off                     Post-fermentation 
+
+
+
+61 Brew Failed: Acid Clean Procedure Error 
+
+
+
+62 CIP Failed: Acid Clean Procedure    Error 
+
+
+
+67 Max Cooling Elapsed                 Error/timeout 
+
+
+
+Brewery Overview Stage Labels 
+
+
+
+         Stage                           Meaning 
+
+
+
+"Idle"                   No active session 
+
+
+
+"Preparing fermentation" Brew complete, waiting for fermentation 
+
+
+
+"Brewing"                Active brew in progress 
+
+
+
+"Fermenting"             Fermentation in progress 
+
+
+
+"Rinsing"                Cleaning: rinse cycle 
+
+
+
+"Cleaning"               Cleaning: CIP cycle 
+
+
+
+"Serving"                Serving beer 
+

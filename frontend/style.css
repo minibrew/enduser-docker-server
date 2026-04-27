@@ -9,7 +9,7 @@ body {
   flex-direction: column;
 }
 
-// ── Navbar ────────────────────────────────────────────────────────────────
+/* â”€â”€ Navbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .navbar {
   display: flex;
@@ -17,10 +17,10 @@ body {
   justify-content: space-between;
   background: #1a1d27;
   border-bottom: 1px solid #2d3748;
-  padding: 0 20px;
-  height: 56px;
+  padding: 0 16px;
+  height: 64px;
   flex-shrink: 0;
-  gap: 16px;
+  gap: 12px;
 }
 
 .navbar__left {
@@ -79,8 +79,19 @@ body {
 .navbar__right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-shrink: 0;
+}
+
+.navbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #2d3748;
+  margin-right: 4px;
 }
 
 .navbar__phase {
@@ -112,7 +123,7 @@ body {
 }
 .navbar__settings-btn:hover { color: #e2e8f0; background: #2d3748; }
 
-// ── Main layout ─────────────────────────────────────────────────────────
+/* â”€â”€ Main layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .main-content {
   flex: 1;
@@ -120,26 +131,44 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
-  display: none;       // hidden until tab shown
 }
 
-.main-content.active { display: block; }
-
-// ── Tab panels ────────────────────────────────────────────────────────────
+/* â”€â”€ Tab panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-// ── Status tab ──────────────────────────────────────────────────────────
+/* â”€â”€ Status tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.status-top-row {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.device-graph-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-container {
+  flex: 1;
+  background: #0f1117;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  padding: 10px;
+  min-height: 300px;
+  position: relative;
+}
 
 .status-bottom-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-top: 16px;
 }
 
-// ── Section base ──────────────────────────────────────────────────────────
+/* â”€â”€ Section base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 section {
   background: #1a1d27;
@@ -161,7 +190,7 @@ section h2 {
   flex-wrap: wrap;
 }
 
-// ── Device info ─────────────────────────────────────────────────────────
+/* â”€â”€ Device info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .device-info-content {
   display: flex;
@@ -199,17 +228,15 @@ section h2 {
 .device-raw-json summary { color: #64748b; cursor: pointer; text-transform: uppercase; font-size: 11px; }
 .device-raw-json pre { margin-top: 8px; color: #94a3b8; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
 
-.device-info-controls { display: flex; gap: 10px; align-items: center; }
-.device-info-btns { display: flex; gap: 4px; }
 .auto-refresh { display: flex; align-items: center; gap: 5px; }
-.auto-refresh label { font-size: 11px; color: #64748b; }
-#auto-refresh-select { background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-#auto-refresh-select option { background: #1a1d27; }
-.refresh-btn { background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; padding: 3px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-.refresh-btn:hover { background: #374151; }
-.refresh-btn.active { border-color: #f59e0b; color: #f59e0b; }
+.auto-refresh label { font-size: 10px; color: #64748b; text-transform: uppercase; }
+#device-refresh-select { background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; outline: none; }
+#device-refresh-select option { background: #1a1d27; }
+.refresh-btn { background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; padding: 2px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+.refresh-btn:hover { background: #374151; border-color: #f59e0b; color: #f59e0b; }
+.refresh-btn.active { border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
 
-// ── Controls ────────────────────────────────────────────────────────────
+/* â”€â”€ Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .controls-grid {
   display: grid;
@@ -242,7 +269,7 @@ section h2 {
 .temp-control label { font-size: 12px; color: #94a3b8; }
 .temp-control input { background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0; padding: 5px 8px; border-radius: 4px; width: 70px; font-size: 13px; }
 
-// ── Kegs ────────────────────────────────────────────────────────────────
+/* â”€â”€ Kegs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .keg-controls-inline {
   display: flex;
@@ -277,7 +304,7 @@ section h2 {
 .keg-temp-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
 .keg-temp-row input { background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0; padding: 5px 8px; border-radius: 4px; width: 70px; font-size: 13px; }
 
-// ── Sessions tab ────────────────────────────────────────────────────────
+/* â”€â”€ Sessions tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .sessions-layout {
   display: grid;
@@ -328,7 +355,7 @@ section h2 {
 .session-select:focus { outline: none; border-color: #f59e0b; }
 .session-select option { background: #1a1d27; color: #e2e8f0; padding: 6px; }
 
-// ── Session detail ─────────────────────────────────────────────────────
+/* â”€â”€ Session detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .session-detail-section {}
 
@@ -353,7 +380,7 @@ section h2 {
 
 .session-detail-commands { margin-top: 16px; padding-top: 16px; border-top: 1px solid #2d3748; }
 
-// ── Recipes tab ─────────────────────────────────────────────────────────
+/* â”€â”€ Recipes tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .recipes-layout {
   display: grid;
@@ -404,7 +431,7 @@ section h2 {
 .recipe-start { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
 .recipe-start input { background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 200px; }
 
-// ── Commands tab ────────────────────────────────────────────────────────
+/* â”€â”€ Commands tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .commands-intro { font-size: 13px; color: #94a3b8; margin-bottom: 16px; line-height: 1.5; }
 .commands-table-wrap { overflow-x: auto; }
@@ -423,12 +450,92 @@ section h2 {
 .codes-table td { padding: 5px 12px; border-bottom: 1px solid #1f2937; }
 .codes-table tr:hover td { background: rgba(255,255,255,0.02); }
 
-// ── Console dock ───────────────────────────────────────────────────────
+/* ── Water Profiles tab ──────────────────────────────────────────────────── */
+
+.water-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
+.water-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.water-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #94a3b8; cursor: pointer; white-space: nowrap; }
+.water-toggle input { accent-color: #f59e0b; cursor: pointer; }
+.water-search {
+  background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0;
+  padding: 6px 12px; border-radius: 6px; font-size: 13px; width: 200px;
+}
+.water-search:focus { outline: none; border-color: #f59e0b; }
+.water-subtitle { font-size: 12px; color: #64748b; margin-bottom: 16px; line-height: 1.5; }
+.water-subtitle a { color: #f59e0b; text-decoration: none; }
+.water-subtitle a:hover { text-decoration: underline; }
+
+.water-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.water-card {
+  background: #1a1d27;
+  border: 1px solid #2d3748;
+  border-radius: 10px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+.water-card:hover { border-color: #4a5568; }
+.water-card.hidden { display: none; }
+
+.water-card__name {
+  font-size: 15px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px;
+}
+.water-card__desc {
+  font-size: 11px; color: #64748b; line-height: 1.45; margin-bottom: 10px;
+}
+
+.water-card__ions {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+  background: #0f1117; border: 1px solid #1f2937; border-radius: 6px;
+  overflow: hidden; margin-bottom: 10px; font-size: 11px; text-align: center;
+}
+.water-card__ions .ion-hdr {
+  padding: 4px 2px; color: #64748b; font-weight: 600; border-bottom: 1px solid #1f2937;
+  font-size: 10px; text-transform: uppercase;
+}
+.water-card__ions .ion-val {
+  padding: 5px 2px; color: #e2e8f0; font-weight: 500; font-family: "SF Mono", "Consolas", monospace;
+}
+
+.water-card__salts { margin-bottom: 10px; }
+.water-card__salts-title {
+  font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 600;
+  margin-bottom: 6px; letter-spacing: 0.04em;
+}
+.water-salt-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 0; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.water-salt-row:last-child { border-bottom: none; }
+.water-salt-row.chalk-hidden { display: none; }
+.water-salt-name { color: #94a3b8; }
+.water-salt-val { color: #e2e8f0; font-family: "SF Mono", "Consolas", monospace; font-weight: 600; }
+.water-salt-zero { color: #2d3748; }
+
+.water-card__styles { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.water-style-tag {
+  background: rgba(245, 158, 11, 0.1); color: #f59e0b;
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+}
+
+.water-card__actions { display: flex; gap: 6px; }
+.water-add-notes-btn {
+  background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568;
+  padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer;
+  transition: all 0.15s;
+}
+.water-add-notes-btn:hover { background: #374151; border-color: #f59e0b; color: #f59e0b; }
+.water-add-notes-btn.copied { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+
+/* â”€â”€ Console dock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .console-dock {
   background: #1a1d27;
   border-top: 1px solid #2d3748;
-  padding: 0 20px;
   flex-shrink: 0;
 }
 
@@ -436,15 +543,54 @@ section h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  padding: 8px 20px;
   font-size: 11px;
   color: #64748b;
   text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0,0,0,0.1);
+}
+
+.console-dock__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.console-dock__toggle {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+.console-dock__toggle:hover { color: #e2e8f0; }
+.console-dock.collapsed .console-dock__toggle { transform: rotate(-90deg); }
+
+.console-dock__body {
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 200px;
+  opacity: 1;
+}
+.console-dock.collapsed .console-dock__body {
+  max-height: 0;
+  opacity: 0;
 }
 
 .console-dock__controls { display: flex; align-items: center; gap: 10px; }
 .console-suppress { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: #64748b; text-transform: none; }
 .console-suppress input { accent-color: #f59e0b; cursor: pointer; }
+.console-refresh-label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #64748b; text-transform: none; }
+.console-refresh-select {
+  background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0;
+  padding: 2px 4px; border-radius: 4px; font-size: 11px; cursor: pointer;
+}
+.console-refresh-select:focus { outline: none; border-color: #f59e0b; }
 
 #clear-log-btn { background: none; border: none; color: #64748b; cursor: pointer; font-size: 13px; }
 #clear-log-btn:hover { color: #e2e8f0; }
@@ -461,42 +607,52 @@ section h2 {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin: 0 20px 10px;
 }
 .log-entry { color: #94a3b8; }
 .log-error { color: #ef4444; }
 .log-success { color: #22c55e; }
 .log-warn { color: #f59e0b; }
 
-// ── Shared buttons ──────────────────────────────────────────────────────
+/* â”€â”€ Shared buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .btn-sm { background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
 .btn-sm:hover { background: #374151; }
 .btn-apply { background: #f59e0b; color: #0f1117; border: none; padding: 5px 14px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-// ── Empty states ────────────────────────────────────────────────────────
+/* â”€â”€ Empty states â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .empty-state { color: #4a5568; font-size: 13px; padding: 20px; text-align: center; }
 
-// ── Token gate ─────────────────────────────────────────────────────────
+/* â”€â”€ Token gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .token-gate {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  background: #0f1117;
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.token-gate__bg {
+  position: absolute;
+  inset: 0;
+  background: url("hops.png") no-repeat center bottom;
+  background-size: 70% auto;
+  opacity: 0.2;
+  pointer-events: none;
+}
 .token-gate__card {
-  background: #1a1d27;
-  border: 1px solid #2d3748;
-  border-radius: 12px;
-  padding: 40px;
+  position: relative;
+  background: #0a0a0a;
+  border: 1px solid #2a1a00;
+  border-radius: 16px;
+  padding: 48px 40px;
   width: 420px;
   max-width: 95vw;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 0 80px rgba(245, 158, 11, 0.08), 0 30px 60px rgba(0,0,0,0.6);
 }
 .token-gate__logo { height: 48px; width: auto; margin-bottom: 16px; }
 .token-gate__title { font-size: 20px; font-weight: 700; color: #f59e0b; margin-bottom: 8px; }
@@ -507,14 +663,20 @@ section h2 {
 .token-gate__submit { background: #f59e0b; color: #0f1117; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
 .token-gate__submit:hover { background: #fbbf24; }
 .token-gate__error { margin-top: 12px; color: #ef4444; font-size: 13px; }
+.token-gate__link {
+  color: #f59e0b;
+  font-weight: 600;
+  text-decoration: none;
+}
+.token-gate__link:hover { text-decoration: underline; }
 
-// ── Auth gate ─────────────────────────────────────────────────────────
+/* â”€â”€ Auth gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .auth-gate {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  background: #0a0a0a;
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -522,8 +684,9 @@ section h2 {
 .auth-gate__bg {
   position: absolute;
   inset: 0;
-  background: url("MB_logo.png") center/50% auto no-repeat;
-  opacity: 0.15;
+  background: url("hops.png") no-repeat center bottom;
+  background-size: 70% auto;
+  opacity: 0.2;
   pointer-events: none;
 }
 .auth-gate__card {
@@ -586,6 +749,9 @@ section h2 {
 .auth-gate__submit:hover { background: #fbbf24; }
 .auth-gate__submit:active { transform: scale(0.98); }
 .auth-gate__error { margin-top: 14px; color: #ef4444; font-size: 13px; }
+.auth-gate__toggle { margin-top: 16px; font-size: 13px; color: #6b7280; }
+.auth-gate__toggle a { color: #f59e0b; text-decoration: none; font-weight: 600; }
+.auth-gate__toggle a:hover { text-decoration: underline; }
 .auth-gate__card .auth-form { margin-top: 0; }
 .auth-user-badge { margin-bottom: 16px; font-size: 13px; color: #94a3b8; }
 .auth-user-badge strong { color: #e2e8f0; }
@@ -595,7 +761,7 @@ section h2 {
 .navbar__logout-btn { background: transparent; border: 1px solid #2d3748; color: #64748b; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 6px; }
 .navbar__logout-btn:hover { border-color: #f59e0b; color: #f59e0b; }
 
-// ── Settings modal ─────────────────────────────────────────────────────
+/* â”€â”€ Settings modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .modal {
   position: fixed;
@@ -641,3 +807,57 @@ section h2 {
 .settings-reset-btn { background: none; color: #ef4444; border: 1px solid #ef4444; padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .settings-reset-btn:hover { background: rgba(239,68,68,0.1); }
 .settings-token-source { font-size: 12px; color: #64748b; margin-top: -6px; margin-bottom: 14px; }
+
+.settings-section--audit { margin-top: 20px; padding-top: 20px; border-top: 1px solid #2d3748; }
+.settings-audit-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.settings-audit-count { font-size: 12px; color: #64748b; }
+
+.settings-audit-log {
+  background: #0f1117;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.audit-log-entry {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1f2937;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.audit-log-entry:last-child { border-bottom: none; }
+.audit-log-entry:hover { background: rgba(255,255,255,0.02); }
+
+.audit-log__time {
+  font-size: 10px;
+  color: #4a5568;
+  font-family: "SF Mono", "Consolas", monospace;
+}
+.audit-log__action {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.audit-log__type {
+  color: #f59e0b;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.audit-log__resource {
+  color: #94a3b8;
+  font-size: 11px;
+}
+.audit-log__result--success { color: #22c55e; }
+.audit-log__result--error { color: #ef4444; }
+.audit-log__details {
+  font-size: 10px;
+  color: #4a5568;
+  font-family: "SF Mono", "Consolas", monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+

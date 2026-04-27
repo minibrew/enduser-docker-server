@@ -1,0 +1,243 @@
+{
+  "volume_liters": 6.5,
+  "water_profiles": [
+    {
+      "name": "Balanced Profile",
+      "description": "Suitable for beers ranging from dark golden to deep amber in color. The generally low ion content should not interfere with the taste of the beer.",
+      "ion_profile_ppm": { "Ca": 80, "Mg": 5, "Na": 25, "Cl": 75, "SO4": 80, "HCO3": 100 },
+      "salts_g": {
+        "chalk_CaCO3": 0.67,
+        "baking_soda_NaHCO3": 0.98,
+        "gypsum_CaSO4": 1.22,
+        "calcium_chloride_CaCl2": 1.73,
+        "epsom_salt_MgSO4": 0.57,
+        "canning_salt_NaCl": 0.0
+      },
+      "styles": ["Wheat Ale", "Amber Ale", "Golden Ale"]
+    },
+    {
+      "name": "Balanced Profile II",
+      "description": "Similar to the Balanced Profile but with twice the minerals. Suitable for dark golden to deep amber beers. Higher ion content makes it better suited for stronger and more robust styles.",
+      "ion_profile_ppm": { "Ca": 150, "Mg": 10, "Na": 80, "Cl": 150, "SO4": 160, "HCO3": 220 },
+      "salts_g": {
+        "chalk_CaCO3": 1.46,
+        "baking_soda_NaHCO3": 2.16,
+        "gypsum_CaSO4": 2.40,
+        "calcium_chloride_CaCl2": 2.59,
+        "epsom_salt_MgSO4": 1.13,
+        "canning_salt_NaCl": 0.70
+      },
+      "styles": ["Strong Ale", "Old Ale", "Belgian Dubbel"]
+    },
+    {
+      "name": "Burton on Trent (historic and decarbonated)",
+      "description": "Known for very high sulfate content. Constructed from a historic water profile after decarbonation through boiling or slaked lime. Low residual alkalinity allowed English brewers to brew pale beers.",
+      "ion_profile_ppm": { "Ca": 187, "Mg": 41, "Na": 113, "Cl": 85, "SO4": 720, "HCO3": 20 },
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.31,
+        "gypsum_CaSO4": 11.14,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 4.67,
+        "canning_salt_NaCl": 1.56
+      },
+      "styles": ["English IPA", "English Pale Ale", "American IPA"]
+    },
+    {
+      "name": "Burton on Trent (historic)",
+      "description": "Known for water with very high sulfate content. Constructed from a water analysis of Burton well water published in 'Burton-on-Trent, Its History, Its Waters and Its Breweries' from 1869.",
+      "ion_profile_ppm": { "Ca": 270, "Mg": 41, "Na": 113, "Cl": 85, "SO4": 720, "HCO3": 270 },
+      "salts_g": {
+        "chalk_CaCO3": 2.27,
+        "baking_soda_NaHCO3": 2.27,
+        "gypsum_CaSO4": 11.01,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 4.67,
+        "canning_salt_NaCl": 1.56
+      },
+      "styles": ["Burton Ale", "English Barleywine"]
+    },
+    {
+      "name": "Dortmund (historic and decarbonated)",
+      "description": "Dortmunder water after decarbonation with slaked lime. Resembles the decarbonated water profile given by Kolbach in his 1953 article and was most likely the water used by Dortmunder brewers.",
+      "ion_profile_ppm": { "Ca": 155, "Mg": 23, "Na": 10, "Cl": 100, "SO4": 300, "HCO3": 53 },
+      "salts_g": {
+        "chalk_CaCO3": 0.98,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 4.17,
+        "calcium_chloride_CaCl2": 1.96,
+        "epsom_salt_MgSO4": 2.63,
+        "canning_salt_NaCl": 0.27
+      },
+      "styles": ["Dortmunder Export"]
+    },
+    {
+      "name": "Dortmund (historic)",
+      "description": "High calcium and sulfate content which lend the Dortmunder Export additional bitterness. Reconstructed from analysis data given in a 1953 article about residual alkalinity by Kolbach.",
+      "ion_profile_ppm": { "Ca": 250, "Mg": 20, "Na": 10, "Cl": 100, "SO4": 300, "HCO3": 340 },
+      "salts_g": {
+        "chalk_CaCO3": 6.16,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 4.41,
+        "calcium_chloride_CaCl2": 1.96,
+        "epsom_salt_MgSO4": 2.28,
+        "canning_salt_NaCl": 0.27
+      },
+      "styles": ["Dortmunder Export"]
+    },
+    {
+      "name": "Dublin (Dry Stout)",
+      "description": "With its high alkalinity Dublin water is well suited for stouts and other dark ales.",
+      "ion_profile_ppm": { "Ca": 110, "Mg": 4, "Na": 12, "Cl": 19, "SO4": 53, "HCO3": 280 },
+      "salts_g": {
+        "chalk_CaCO3": 4.59,
+        "baking_soda_NaHCO3": 0.46,
+        "gypsum_CaSO4": 0.74,
+        "calcium_chloride_CaCl2": 0.45,
+        "epsom_salt_MgSO4": 0.46,
+        "canning_salt_NaCl": 0.0
+      },
+      "styles": ["Dry Stout", "Irish Stout", "Imperial Stout"]
+    },
+    {
+      "name": "Düsseldorf (Altbier)",
+      "description": "The water profile of Düsseldorf (Germany) is well suited for Altbier and is very likely the water used by Altbier breweries without any modification. Ion levels taken from a 2013 water quality report.",
+      "ion_profile_ppm": { "Ca": 90, "Mg": 12, "Na": 45, "Cl": 82, "SO4": 65, "HCO3": 223 },
+      "salts_g": {
+        "chalk_CaCO3": 1.99,
+        "baking_soda_NaHCO3": 1.77,
+        "gypsum_CaSO4": 0.34,
+        "calcium_chloride_CaCl2": 1.91,
+        "epsom_salt_MgSO4": 1.37,
+        "canning_salt_NaCl": 0.0
+      },
+      "styles": ["Altbier"]
+    },
+    {
+      "name": "Edinburgh (Scottish Ale, Malty Ale)",
+      "description": "One of the historic water profiles for Edinburgh, Scotland. Because of its geology Scottish brewers have access to many different waters. This particular profile is well suited for darker Scottish ales.",
+      "ion_profile_ppm": { "Ca": 100, "Mg": 18, "Na": 20, "Cl": 45, "SO4": 105, "HCO3": 235 },
+      "salts_g": {
+        "chalk_CaCO3": 3.38,
+        "baking_soda_NaHCO3": 0.79,
+        "gypsum_CaSO4": 0.69,
+        "calcium_chloride_CaCl2": 1.05,
+        "epsom_salt_MgSO4": 2.03,
+        "canning_salt_NaCl": 0.0
+      },
+      "styles": ["Scottish Ale", "Scotch Ale", "Wee Heavy", "Dark Ale"]
+    },
+    {
+      "name": "Light Colored and Hoppy",
+      "description": "Low residual alkalinity and a sulfate to chloride ratio balanced towards sulfate make this an excellent choice for light colored (2–5 SRM) and hop forward beers. The mineral level is restrained and should not show through in the taste.",
+      "ion_profile_ppm": { "Ca": 75, "Mg": 5, "Na": 10, "Cl": 50, "SO4": 150, "HCO3": 0 },
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 2.64,
+        "calcium_chloride_CaCl2": 0.81,
+        "epsom_salt_MgSO4": 0.57,
+        "canning_salt_NaCl": 0.27
+      },
+      "styles": ["Pale Ale", "IPA", "Session IPA", "Double IPA"]
+    },
+    {
+      "name": "Light Colored and Malty",
+      "description": "Low residual alkalinity and a sulfate to chloride ratio balanced towards chloride make this an excellent choice for light colored (2–5 SRM) and malt forward beers. The mineral level is restrained and should not show through in the taste.",
+      "ion_profile_ppm": { "Ca": 60, "Mg": 5, "Na": 10, "Cl": 95, "SO4": 55, "HCO3": 0 },
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.70,
+        "calcium_chloride_CaCl2": 1.85,
+        "epsom_salt_MgSO4": 0.57,
+        "canning_salt_NaCl": 0.27
+      },
+      "styles": ["Kölsch", "Blonde Ale", "Cream Ale", "Pumpkin Ale"]
+    },
+    {
+      "name": "London (Porter, Dark Ales)",
+      "description": "With its high temporary hardness the London water profile is well suited for dark beers like Porter. Taken from an average London water report and also matches the historic London profile found in various literature sources.",
+      "ion_profile_ppm": { "Ca": 100, "Mg": 5, "Na": 35, "Cl": 60, "SO4": 50, "HCO3": 265 },
+      "salts_g": {
+        "chalk_CaCO3": 4.86,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.60,
+        "calcium_chloride_CaCl2": 0.03,
+        "epsom_salt_MgSO4": 0.57,
+        "canning_salt_NaCl": 1.00
+      },
+      "styles": ["Porter", "English Brown Ale", "English Mild"]
+    },
+    {
+      "name": "Munich (Dark Lager)",
+      "description": "Munich water is high in temporary hardness and well suited for dark lagers such as Munich Dunkel, Schwarzbier or Doppelbock. Because of its high residual alkalinity, not recommended for Munich Helles or Maibock. Mineral levels from the 2013 Munich water quality report.",
+      "ion_profile_ppm": { "Ca": 82, "Mg": 20, "Na": 4, "Cl": 2, "SO4": 16, "HCO3": 320 },
+      "salts_g": {
+        "chalk_CaCO3": 5.75,
+        "baking_soda_NaHCO3": 0.10,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 0.46,
+        "canning_salt_NaCl": 0.03
+      },
+      "styles": ["Munich Dunkel", "Schwarzbier", "Doppelbock", "Baltic Porter"]
+    },
+    {
+      "name": "Munich (Decarbonated)",
+      "description": "Munich water after treatment with slaked lime and the addition of calcium chloride and gypsum. The kind of water treatment a Munich brewer might do for lighter beers. Well suited for Märzen and Maibock.",
+      "ion_profile_ppm": { "Ca": 40, "Mg": 20, "Na": 4, "Cl": 75, "SO4": 52, "HCO3": 29 },
+      "salts_g": {
+        "chalk_CaCO3": 0.53,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 1.60,
+        "epsom_salt_MgSO4": 1.49,
+        "canning_salt_NaCl": 0.12
+      },
+      "styles": ["Märzen", "Oktoberfest", "Maibock", "Dunkelweizen"]
+    },
+    {
+      "name": "Pilsen (Light Lager)",
+      "description": "Very low mineral water, the traditional water for Bohemian pilsner beers. Despite its low calcium content, great pilsner and Helles style beers can be brewed with it.",
+      "ion_profile_ppm": { "Ca": 7, "Mg": 3, "Na": 2, "Cl": 5, "SO4": 5, "HCO3": 25 },
+      "salts_g": {
+        "chalk_CaCO3": 0.46,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.05,
+        "epsom_salt_MgSO4": 0.17,
+        "canning_salt_NaCl": 0.05
+      },
+      "styles": ["Bohemian Pilsner", "Czech Lager", "Mexican Lager", "Helles"]
+    },
+    {
+      "name": "Vienna",
+      "description": "The classic Vienna water profile is moderately hard with notable carbonate levels. Well suited for Vienna Lager and other amber lager styles that benefit from a balanced, malty character.",
+      "ion_profile_ppm": { "Ca": 163, "Mg": 68, "Na": 8, "Cl": 12, "SO4": 216, "HCO3": 243 },
+      "salts_g": {
+        "chalk_CaCO3": 3.66,
+        "baking_soda_NaHCO3": 0.39,
+        "gypsum_CaSO4": 0.05,
+        "calcium_chloride_CaCl2": 0.34,
+        "epsom_salt_MgSO4": 1.63,
+        "canning_salt_NaCl": 0.0
+      },
+      "styles": ["Vienna Lager", "Amber Lager"]
+    },
+    {
+      "name": "Chimay",
+      "description": "The water profile of the Chimay brewery in Belgium. High carbonate levels well suited for traditional Belgian abbey styles that benefit from higher alkalinity.",
+      "ion_profile_ppm": { "Ca": 80, "Mg": 7, "Na": 10, "Cl": 14, "SO4": 18, "HCO3": 260 },
+      "salts_g": {
+        "chalk_CaCO3": 3.97,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.24,
+        "epsom_salt_MgSO4": 0.60,
+        "canning_salt_NaCl": 0.21
+      },
+      "styles": ["Belgian Tripel", "Belgian Dubbel", "Belgian Witbier"]
+    }
+  ]
+}

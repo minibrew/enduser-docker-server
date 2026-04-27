@@ -50,44 +50,44 @@ class DeviceService:
 
             for key in BREWERY_BUCKETS:
                 devices: list[dict[str, Any]] = overview.get(key, [])
-                if devices and not brew_data:
-                    brew_data = devices[0]
-                    # Auto-select first non-empty bucket.
-                    if not store.get_selected_bucket():
-                        store.select_bucket(key)
+                for d in devices:
+                    uuid = d.get("uuid") or d.get("serial_number")
+                    if not uuid:
+                        continue
+                    
+                    if not brew_data:
+                        brew_data = d
+                    
+                    # Auto-select first device ever found if none is selected.
+                    if not store.get_selected_device_uuid():
+                        store.select_device(uuid)
 
-            # Build enriched state per bucket.
-            for key in BREWERY_BUCKETS:
-                devs = overview.get(key, [])
-                if not devs:
-                    continue
-                d = devs[0]
-                intelligence = build_state_intelligence(
-                    state=d.get("process_state", 0),
-                    user_action=d.get("user_action", 0),
-                    current_state=d.get("current_state", 0),
-                )
-                device_state: dict[str, Any] = {
-                    **intelligence,
-                    "uuid": d.get("uuid") or d.get("serial_number"),
-                    "custom_name": d.get("title"),
-                    "stage": d.get("stage"),
-                    "sub_title": d.get("sub_title"),
-                    "software_version": d.get("software_version"),
-                    "online": d.get("online", False),
-                    "updating": d.get("updating", False),
-                    "beer_name": d.get("beer_name"),
-                    "beer_style": d.get("beer_style"),
-                    "current_temp": d.get("current_temp"),
-                    "target_temp": d.get("target_temp"),
-                    "gravity": d.get("gravity"),
-                    "session_id": d.get("session_id"),
-                    "active_session": d.get("session_id"),
-                    "image": d.get("image"),
-                    "_raw": d,
-                    "_bucket": key,
-                }
-                store.set_device_state(key, device_state)
+                    intelligence = build_state_intelligence(
+                        state=d.get("process_state", 0),
+                        user_action=d.get("user_action", 0),
+                        current_state=d.get("current_state", 0),
+                    )
+                    device_state: dict[str, Any] = {
+                        **intelligence,
+                        "uuid": uuid,
+                        "custom_name": d.get("title"),
+                        "stage": d.get("stage"),
+                        "sub_title": d.get("sub_title"),
+                        "software_version": d.get("software_version"),
+                        "online": d.get("online", False),
+                        "updating": d.get("updating", False),
+                        "beer_name": d.get("beer_name"),
+                        "beer_style": d.get("beer_style"),
+                        "current_temp": d.get("current_temp"),
+                        "target_temp": d.get("target_temp"),
+                        "gravity": d.get("gravity"),
+                        "session_id": d.get("session_id"),
+                        "active_session": d.get("session_id"),
+                        "image": d.get("image"),
+                        "_raw": d,
+                        "_bucket": key,
+                    }
+                    store.set_device_state(uuid, device_state)
 
         except Exception:
             pass

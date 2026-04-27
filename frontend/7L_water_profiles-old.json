@@ -1,0 +1,542 @@
+{
+  "water_profiles": [
+    {
+      "name": "Balanced Profile",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.39,
+        "baking_soda_NaHCO3": 0.57,
+        "gypsum_CaSO4": 0.71,
+        "calcium_chloride_CaCl2": 1.01,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.0
+      }
+    },
+    {
+      "name": "Balanced Profile II",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.85,
+        "baking_soda_NaHCO3": 1.26,
+        "gypsum_CaSO4": 1.4,
+        "calcium_chloride_CaCl2": 1.51,
+        "epsom_salt_MgSO4": 0.66,
+        "canning_salt_NaCl": 0.41
+      }
+    },
+    {
+      "name": "Burton on Trent (historic and decarbonated)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.18,
+        "gypsum_CaSO4": 6.49,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 2.72,
+        "canning_salt_NaCl": 0.91
+      }
+    },
+    {
+      "name": "Burton on Trent (historic)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 1.32,
+        "baking_soda_NaHCO3": 1.32,
+        "gypsum_CaSO4": 6.41,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 2.72,
+        "canning_salt_NaCl": 0.91
+      }
+    },
+    {
+      "name": "Dortmund (historic and decarbonated)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.57,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 2.43,
+        "calcium_chloride_CaCl2": 1.14,
+        "epsom_salt_MgSO4": 1.53,
+        "canning_salt_NaCl": 0.16
+      }
+    },
+    {
+      "name": "Dortmund (historic)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 3.59,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 2.57,
+        "calcium_chloride_CaCl2": 1.14,
+        "epsom_salt_MgSO4": 1.33,
+        "canning_salt_NaCl": 0.16
+      }
+    },
+    {
+      "name": "Dublin (Dry Stout)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 2.67,
+        "baking_soda_NaHCO3": 0.27,
+        "gypsum_CaSO4": 0.43,
+        "calcium_chloride_CaCl2": 0.26,
+        "epsom_salt_MgSO4": 0.27,
+        "canning_salt_NaCl": 0.0
+      }
+    },
+    {
+      "name": "Dusseldorf",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 1.16,
+        "baking_soda_NaHCO3": 1.03,
+        "gypsum_CaSO4": 0.2,
+        "calcium_chloride_CaCl2": 1.11,
+        "epsom_salt_MgSO4": 0.8,
+        "canning_salt_NaCl": 0.0
+      }
+    },
+    {
+      "name": "Edinburgh (Scottish Ale, Malty Ale)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 1.97,
+        "baking_soda_NaHCO3": 0.46,
+        "gypsum_CaSO4": 0.4,
+        "calcium_chloride_CaCl2": 0.61,
+        "epsom_salt_MgSO4": 1.18,
+        "canning_salt_NaCl": 0.0
+      }
+    },
+    {
+      "name": "Light and Hoppy",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 1.54,
+        "calcium_chloride_CaCl2": 0.47,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.16
+      }
+    },
+    {
+      "name": "Light and Malty",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.41,
+        "calcium_chloride_CaCl2": 1.08,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.16
+      }
+    },
+    {
+      "name": "London (Porter, Dark Ales)",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 2.83,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.35,
+        "calcium_chloride_CaCl2": 0.02,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.58
+      }
+    },
+    {
+      "name": "Munich Dark Lager",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 3.35,
+        "baking_soda_NaHCO3": 0.06,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 0.27,
+        "canning_salt_NaCl": 0.02
+      }
+    },
+    {
+      "name": "Munich",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.31,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.93,
+        "epsom_salt_MgSO4": 0.87,
+        "canning_salt_NaCl": 0.07
+      }
+    },
+    {
+      "name": "Pilsen",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.27,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.03,
+        "epsom_salt_MgSO4": 0.1,
+        "canning_salt_NaCl": 0.03
+      }
+    },
+    {
+      "name": "Vienna",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 2.13,
+        "baking_soda_NaHCO3": 0.23,
+        "gypsum_CaSO4": 0.03,
+        "calcium_chloride_CaCl2": 0.2,
+        "epsom_salt_MgSO4": 0.95,
+        "canning_salt_NaCl": 0.0
+      }
+    },
+    {
+      "name": "Chimay",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 2.31,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.14,
+        "epsom_salt_MgSO4": 0.35,
+        "canning_salt_NaCl": 0.12
+      }
+    },
+    {
+      "name": "Sable Porter",
+      "salts_per_gallon_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 1.56,
+        "gypsum_CaSO4": 0.78,
+        "calcium_chloride_CaCl2": 1.04,
+        "epsom_salt_MgSO4": 0.26,
+        "canning_salt_NaCl": 0.0
+      }
+    }
+  ],
+  "recipes": [
+    {
+      "profile": "Light and Malty",
+      "volume_liters": 6.4,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.4,
+        "calcium_chloride_CaCl2": 1.06,
+        "epsom_salt_MgSO4": 0.32,
+        "canning_salt_NaCl": 0.16
+      },
+      "style": "Amber Ale"
+    },
+    {
+      "profile": "Dublin (Dry Stout)",
+      "volume_liters": 6.5,
+      "salts_g": {
+        "chalk_CaCO3": 2.67,
+        "baking_soda_NaHCO3": 0.27,
+        "gypsum_CaSO4": 0.43,
+        "calcium_chloride_CaCl2": 0.26,
+        "epsom_salt_MgSO4": 0.27,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Stout"
+    },
+    {
+      "profile": "Balanced Profile",
+      "volume_liters": 6.5,
+      "salts_g": {
+        "chalk_CaCO3": 0.39,
+        "baking_soda_NaHCO3": 0.57,
+        "gypsum_CaSO4": 0.71,
+        "calcium_chloride_CaCl2": 1.01,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Wheat Ale"
+    },
+    {
+      "profile": "Light and Hoppy",
+      "volume_liters": 6.4,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 1.52,
+        "calcium_chloride_CaCl2": 0.46,
+        "epsom_salt_MgSO4": 0.32,
+        "canning_salt_NaCl": 0.16
+      },
+      "style": "Session Ale"
+    },
+    {
+      "profile": "chimay",
+      "volume_liters": 6.8,
+      "salts_g": {
+        "chalk_CaCO3": 2.42,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.15,
+        "epsom_salt_MgSO4": 0.37,
+        "canning_salt_NaCl": 0.13
+      },
+      "style": "Belgian Tripel"
+    },
+    {
+      "profile": "chimay",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 2.38,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.14,
+        "epsom_salt_MgSO4": 0.36,
+        "canning_salt_NaCl": 0.12
+      },
+      "style": "Belgian Witbier"
+    },
+    {
+      "profile": "Burton on Trent (historic and decarbonated)",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.19,
+        "gypsum_CaSO4": 6.69,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 2.8,
+        "canning_salt_NaCl": 0.94
+      },
+      "style": "American IPA"
+    },
+    {
+      "profile": "Burton on Trent (historic and decarbonated)",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.19,
+        "gypsum_CaSO4": 6.69,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 2.8,
+        "canning_salt_NaCl": 0.94
+      },
+      "style": "American IPA"
+    },
+    {
+      "profile": "Dublin (Dry Stout)",
+      "volume_liters": 7.0,
+      "salts_g": {
+        "chalk_CaCO3": 2.88,
+        "baking_soda_NaHCO3": 0.29,
+        "gypsum_CaSO4": 0.46,
+        "calcium_chloride_CaCl2": 0.28,
+        "epsom_salt_MgSO4": 0.29,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Stout"
+    },
+    {
+      "profile": "Burton on Trent (historic and decarbonated)",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.19,
+        "gypsum_CaSO4": 6.69,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 2.8,
+        "canning_salt_NaCl": 0.94
+      },
+      "style": "American IPA"
+    },
+    {
+      "profile": "Burton on Trent (historic and decarbonated)",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.19,
+        "gypsum_CaSO4": 6.69,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 2.8,
+        "canning_salt_NaCl": 0.94
+      },
+      "style": "American IPA"
+    },
+    {
+      "profile": "munich",
+      "volume_liters": 6.8,
+      "salts_g": {
+        "chalk_CaCO3": 0.32,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.97,
+        "epsom_salt_MgSO4": 0.91,
+        "canning_salt_NaCl": 0.07
+      },
+      "style": "Dunkelweizen"
+    },
+    {
+      "profile": "Edinburgh (Scottish Ale, Malty Ale)",
+      "volume_liters": 7.0,
+      "salts_g": {
+        "chalk_CaCO3": 2.12,
+        "baking_soda_NaHCO3": 0.5,
+        "gypsum_CaSO4": 0.43,
+        "calcium_chloride_CaCl2": 0.66,
+        "epsom_salt_MgSO4": 1.27,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "festivus ale"
+    },
+    {
+      "profile": "Light and Hoppy",
+      "volume_liters": 6.9,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 1.63,
+        "calcium_chloride_CaCl2": 0.5,
+        "epsom_salt_MgSO4": 0.35,
+        "canning_salt_NaCl": 0.17
+      },
+      "style": "American IPA"
+    },
+    {
+      "profile": "Light and Hoppy",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.42,
+        "calcium_chloride_CaCl2": 1.11,
+        "epsom_salt_MgSO4": 0.34,
+        "canning_salt_NaCl": 0.16
+      },
+      "style": "Wheat Beer"
+    },
+    {
+      "profile": "Dublin (Dry Stout)",
+      "volume_liters": 7.9,
+      "salts_g": {
+        "chalk_CaCO3": 0.25,
+        "baking_soda_NaHCO3": 0.33,
+        "gypsum_CaSO4": 0.52,
+        "calcium_chloride_CaCl2": 0.32,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Imperial Stout"
+    },
+    {
+      "profile": "Edinburgh (Scottish Ale, Malty Ale)",
+      "volume_liters": 6.6,
+      "salts_g": {
+        "chalk_CaCO3": 2.0,
+        "baking_soda_NaHCO3": 0.47,
+        "gypsum_CaSO4": 0.41,
+        "calcium_chloride_CaCl2": 0.62,
+        "epsom_salt_MgSO4": 1.2,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Jurassic Ale"
+    },
+    {
+      "profile": "Pilsen",
+      "volume_liters": 6.1,
+      "salts_g": {
+        "chalk_CaCO3": 0.25,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.03,
+        "epsom_salt_MgSO4": 0.09,
+        "canning_salt_NaCl": 0.03
+      },
+      "style": "Mexican Lager"
+    },
+    {
+      "profile": "Munich",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.32,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.96,
+        "epsom_salt_MgSO4": 0.9,
+        "canning_salt_NaCl": 0.07
+      },
+      "style": "M\u00e4rzen"
+    },
+    {
+      "profile": "Pilsen",
+      "volume_liters": 6.4,
+      "salts_g": {
+        "chalk_CaCO3": 0.27,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.03,
+        "epsom_salt_MgSO4": 0.1,
+        "canning_salt_NaCl": 0.03
+      },
+      "style": "Pilsner"
+    },
+    {
+      "profile": "Light and Malty",
+      "volume_liters": 6.7,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.42,
+        "calcium_chloride_CaCl2": 1.11,
+        "epsom_salt_MgSO4": 0.34,
+        "canning_salt_NaCl": 0.16
+      },
+      "style": "Pumpkin Ale"
+    },
+    {
+      "profile": "Light and Hoppy",
+      "volume_liters": 7.3,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 1.73,
+        "calcium_chloride_CaCl2": 0.53,
+        "epsom_salt_MgSO4": 0.37,
+        "canning_salt_NaCl": 0.18
+      },
+      "style": "American IPA"
+    },
+    {
+      "profile": null,
+      "volume_liters": 7.0,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 1.68,
+        "gypsum_CaSO4": 0.84,
+        "calcium_chloride_CaCl2": 1.12,
+        "epsom_salt_MgSO4": 0.28,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Porter"
+    },
+    {
+      "profile": "Light and Malty",
+      "volume_liters": 6.5,
+      "salts_g": {
+        "chalk_CaCO3": 0.0,
+        "baking_soda_NaHCO3": 0.0,
+        "gypsum_CaSO4": 0.41,
+        "calcium_chloride_CaCl2": 1.08,
+        "epsom_salt_MgSO4": 0.33,
+        "canning_salt_NaCl": 0.16
+      },
+      "style": "K\u00f6lsch"
+    },
+    {
+      "profile": "Munich Dark Lager",
+      "volume_liters": 7.0,
+      "salts_g": {
+        "chalk_CaCO3": 3.61,
+        "baking_soda_NaHCO3": 0.06,
+        "gypsum_CaSO4": 0.0,
+        "calcium_chloride_CaCl2": 0.0,
+        "epsom_salt_MgSO4": 0.29,
+        "canning_salt_NaCl": 0.02
+      },
+      "style": "Baltic Porter"
+    },
+    {
+      "profile": "Edinburgh (Scottish Ale, Malty Ale)",
+      "volume_liters": 7.1,
+      "salts_g": {
+        "chalk_CaCO3": 2.15,
+        "baking_soda_NaHCO3": 0.5,
+        "gypsum_CaSO4": 0.44,
+        "calcium_chloride_CaCl2": 0.67,
+        "epsom_salt_MgSO4": 1.29,
+        "canning_salt_NaCl": 0.0
+      },
+      "style": "Scottish Wee Heavy"
+    }
+  ]
+}
